@@ -1,0 +1,13 @@
+file,target,task,drop
+adult.csv,income,classification,
+bank.csv,deposit,classification,
+heart.csv,target,classification,
+horse.csv,outcome,classification,hospital_number
+house_prices.csv,Price (in rupees),regression,Index|Amount(in rupees)
+insurance.csv,charges,regression,
+iris.csv,species,classification,
+pima-indians-diabetes.csv,outcome,classification,
+car_prices.csv,Price,regression,ID
+train_and_test2.csv,2urvived,classification,Passengerid
+WA_Fn-UseC_-Telco-Customer-Churn.csv,Churn,classification,customerID
+WineQT.csv,quality,classification,Id
