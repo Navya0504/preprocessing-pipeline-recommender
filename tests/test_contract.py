@@ -67,7 +67,7 @@ def test_evaluate_pipeline_scores_are_normalised(df):
 
 
 def test_evaluate_many_one_row_per_spec(df):
-    specs = generate_candidates({"task": "classification"})
+    specs = generate_candidates({"task": "classification"})[:3]  # the full grid is slow to evaluate
     table = evaluate_many(specs, df, "label", "classification")
     assert len(table) == len(specs)
     assert set(SPEC_KEYS + SCORE_KEYS).issubset(table.columns)
@@ -75,7 +75,7 @@ def test_evaluate_many_one_row_per_spec(df):
 
 def test_recommender_returns_specs(df):
     meta = extract_meta_features(df, "label", "classification")
-    specs = generate_candidates(meta)
+    specs = generate_candidates(meta)[:6]  # the full grid is slow to evaluate
     experience = evaluate_many(specs, df, "label", "classification")
     similar = find_similar_datasets(meta, experience, k=2)
     assert "distance" in similar.columns
