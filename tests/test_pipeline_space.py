@@ -263,3 +263,11 @@ def test_with_model_cross_validates_without_leakage(data):
     pipe = with_model(build_pipeline(spec, NUM, CAT, "classification"), LogisticRegression(max_iter=500))
     scores = cross_val_score(pipe, X, y, cv=3)
     assert len(scores) == 3 and np.all(np.isfinite(scores))
+
+
+def test_drop_rows_not_offered_when_most_rows_are_incomplete():
+    many = generate_candidates({"task": "classification", "pct_missing": 20.0, "pct_rows_with_missing": 80.0})
+    few = generate_candidates({"task": "classification", "pct_missing": 2.0, "pct_rows_with_missing": 10.0})
+    assert "drop_rows" not in {spec["imputer"] for spec in many}
+    assert "drop_rows" in {spec["imputer"] for spec in few}
+    assert {"mean", "median", "most_frequent", "knn"} <= {spec["imputer"] for spec in many}

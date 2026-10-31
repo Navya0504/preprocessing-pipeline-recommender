@@ -101,7 +101,8 @@ def evaluate_pipeline(
     if target not in df.columns:
         raise ValueError(f"target column '{target}' not found in the dataset")
     data = df.dropna(subset=[target])
-    X = data.drop(columns=[target])
+    # Columns with no values at all carry no information and break scalers, so leave them out.
+    X = data.drop(columns=[target]).dropna(axis=1, how="all")
     y = data[target]
     numeric_cols = list(X.select_dtypes(include="number").columns)
     categorical_cols = [col for col in X.columns if col not in numeric_cols]

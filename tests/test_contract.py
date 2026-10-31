@@ -77,6 +77,9 @@ def test_recommender_returns_specs(df):
     meta = extract_meta_features(df, "label", "classification")
     specs = generate_candidates(meta)[:6]  # the full grid is slow to evaluate
     experience = evaluate_many(specs, df, "label", "classification")
+    experience.insert(0, "dataset_id", "d1")  # the experience database also carries dataset_id + meta-features
+    for key, value in meta.items():
+        experience[key] = value
     similar = find_similar_datasets(meta, experience, k=2)
     assert "distance" in similar.columns
     recommended = recommend(meta, experience, k=2)

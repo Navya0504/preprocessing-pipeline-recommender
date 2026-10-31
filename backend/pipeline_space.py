@@ -64,6 +64,9 @@ _OPTIONS = {
 
 # A dataset with a minority/majority ratio at or above this counts as balanced.
 BALANCED_RATIO = 0.8
+# "drop_rows" deletes every row that has a gap. If more than this share (in percent) of rows
+# have a gap, almost nothing would be left to learn from, so that option is not offered.
+DROP_ROWS_MAX_INCOMPLETE_PCT = 50.0
 # One-hot keeps at most this many categories per column (the rest become "other").
 ONEHOT_MAX_CATEGORIES = 20
 # Share of training rows that "isolation_forest" removes as outliers.
@@ -104,6 +107,7 @@ def generate_candidates(meta_features: dict) -> list[dict]:
     matter for this dataset are collapsed to a single value so no time is
     wasted evaluating identical pipelines:
         nothing missing            -> one imputer only
+        over half the rows incomplete -> no "drop_rows" (it would delete most of the data)
         no categorical columns     -> one encoder only
         no numeric columns         -> no scaling and no outlier handling
         no outliers found          -> no outlier handling
@@ -117,9 +121,13 @@ def generate_candidates(meta_features: dict) -> list[dict]:
     ratio = _known(meta_features, "class_imbalance_ratio")
     is_classification = meta_features.get("task", "classification") == "classification"
 
+    pct_rows_missing = _known(meta_features, "pct_rows_with_missing")
+
     imputers = IMPUTERS
     if pct_missing is not None and pct_missing == 0:
         imputers = ["median"]
+    elif pct_rows_missing is not None and pct_rows_missing > DROP_ROWS_MAX_INCOMPLETE_PCT:
+        imputers = [name for name in IMPUTERS if name != "drop_rows"]
 
     encoders = ENCODERS
     if n_categorical is not None and n_categorical == 0:

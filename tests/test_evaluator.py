@@ -155,3 +155,13 @@ def test_build_experience_db_writes_contract_columns(clf_df, reg_df, tmp_path, m
     assert set(table["dataset_id"]) == {"clf", "reg"}
     assert (table.groupby("dataset_id").size() == 2).all()
     assert (table[table["dataset_id"] == "reg"]["task"] == "regression").all()
+
+
+def test_completely_empty_columns_are_ignored():
+    rng = np.random.default_rng(3)
+    n = 200
+    df = pd.DataFrame({"empty_num": np.nan, "c": rng.choice(["x", "y", "z"], n), "y": rng.normal(size=n)})
+    df["y"] = df["y"] + (df["c"] == "x") * 3
+    for scaler in ["none", "standard", "minmax", "robust"]:
+        result = evaluate_pipeline({**SIMPLE, "scaler": scaler}, df, "y", "regression")
+        assert np.isfinite(result["raw_cv_mean"]), f"scaler={scaler} failed on an empty column"
