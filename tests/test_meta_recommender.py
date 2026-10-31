@@ -102,8 +102,8 @@ def test_predicted_scores_lean_towards_nearer_dataset(db):
     predicted = predict_pipeline_scores(query, db, k=2)
     perf = predicted.set_index(SPEC_KEYS)["performance"]
     a = perf.loc[tuple(SPEC_A[key] for key in SPEC_KEYS)]
-    # SPEC_A scored 0.9 on the nearest (messy) and 0.3 on the other: prediction is closer to 0.9
-    assert 0.6 < a < 0.9
+    # SPEC_A was the best on the nearest (messy) dataset and the worst on the other: prediction leans to the best
+    assert 0.5 < a <= 1.0
     assert set(predicted.columns) >= set(SPEC_KEYS + SCORE_KEYS + ["n_neighbours"])
     assert (predicted["n_neighbours"] == 2).all()
 
@@ -157,3 +157,25 @@ def test_dominated_pipeline_is_ranked_after_the_pareto_front():
 def test_empty_experience_returns_default(db):
     assert recommend(meta(), db.iloc[0:0], k=3) == [DEFAULT_SPEC]
     assert recommend(meta(), db, k=3, exclude_dataset_id="messy", candidates=[dict(SPEC_B, scaler="none")]) == [DEFAULT_SPEC]
+
+
+def test_scores_are_compared_within_each_dataset_not_across_them():
+    # On "easy", every pipeline scores about 0.9 and SPEC_A is the best of them.
+    # On "hard", every pipeline scores about 0.2 and SPEC_A is again the best of them.
+    # Averaging raw scores would call SPEC_A "0.55"; relative scores correctly say "best".
+    easy, hard = meta(n_rows=900), meta(n_rows=950)
+    db = experience_table([
+        ("easy", easy, [(SPEC_A, scores(0.92)), (SPEC_B, scores(0.88)), (SPEC_C, scores(0.89))]),
+        ("hard", hard, [(SPEC_A, scores(0.25)), (SPEC_B, scores(0.15)), (SPEC_C, scores(0.18))]),
+    ])
+    relative = predict_pipeline_scores(meta(), db, k=2).set_index(SPEC_KEYS)["performance"]
+    raw = predict_pipeline_scores(meta(), db, k=2, relative=False).set_index(SPEC_KEYS)["performance"]
+    key = tuple(SPEC_A[name] for name in SPEC_KEYS)
+    assert relative.loc[key] == pytest.approx(1.0)
+    assert raw.loc[key] < 0.7
+    assert recommend(meta(), db, k=2, n=1, weights={"performance": 1.0})[0] == SPEC_A
+
+
+def test_relative_scores_stay_between_zero_and_one(db):
+    predicted = predict_pipeline_scores(meta(), db, k=3)
+    assert predicted[SCORE_KEYS].min().min() >= 0.0 and predicted[SCORE_KEYS].max().max() <= 1.0

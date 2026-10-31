@@ -7,8 +7,11 @@ How it works
     1. Every past dataset in the experience database has a "fingerprint" (its meta-features).
     2. Fingerprints are put on a common scale and compared with the new dataset's
        fingerprint. The k closest past datasets are its "neighbours".
-    3. For each pipeline, the five scores it earned on the neighbours are averaged,
-       giving more weight to closer neighbours. This is the predicted score.
+    3. For each pipeline, the scores it earned on the neighbours are averaged, giving
+       more weight to closer neighbours. This is the predicted score. Performance,
+       efficiency and robustness are first made RELATIVE within each past dataset
+       (0 = worst pipeline there, 1 = best), because an accuracy of 0.9 on one dataset
+       and an R^2 of 0.2 on another cannot be averaged directly.
     4. The predicted scores go through Pareto selection, so the recommendations are the
        pipelines nothing else beats on all five goals, ranked by weighted average.
 
@@ -53,6 +56,8 @@ LOG_META = {"n_rows", "n_cols", "n_numeric", "n_categorical", "mean_cardinality"
 
 TASK_PENALTY = 1.0  # added to the distance when a past dataset has a different task
 WEIGHT_SOFTENER = 0.1  # neighbour weight = 1 / (distance + this)
+# Scores whose size depends on the dataset; simplicity and explainability depend only on the pipeline.
+RELATIVE_SCORES = ["performance", "efficiency", "robustness"]
 
 
 # ------------------------------------------------------------------ fingerprints
@@ -124,8 +129,13 @@ def predict_pipeline_scores(
     k: int = 5,
     candidates: list[dict] | None = None,
     exclude_dataset_id: str | None = None,
+    relative: bool = True,
 ) -> pd.DataFrame:
     """Predict the five scores of each pipeline on the new dataset.
+
+    With relative=True (default), performance, efficiency and robustness are rescaled
+    within each past dataset to 0..1 before averaging (0 = worst pipeline tried there,
+    1 = best), so the prediction says "how much better than the others", not an absolute score.
 
     Returns one row per pipeline: spec columns, five predicted scores, and
     `n_neighbours` (how many neighbours had results for it). Only pipelines that
@@ -145,6 +155,12 @@ def predict_pipeline_scores(
     if rows.empty:
         return pd.DataFrame(columns=columns)
     rows["_weight"] = rows["dataset_id"].map(weights)
+    if relative:
+        for score in RELATIVE_SCORES:
+            low = rows.groupby("dataset_id")[score].transform("min")
+            high = rows.groupby("dataset_id")[score].transform("max")
+            span = (high - low).where(high > low)
+            rows[score] = ((rows[score] - low) / span).fillna(0.5)
 
     records = []
     for spec_values, group in rows.groupby(SPEC_KEYS, sort=False):
@@ -173,6 +189,7 @@ def recommend(
     weights: dict[str, float] | None = None,
     candidates: list[dict] | None = None,
     exclude_dataset_id: str | None = None,
+    relative: bool = True,
 ) -> list[dict]:
     """Return up to n ranked pipeline specs learned from similar datasets.
 
@@ -181,7 +198,7 @@ def recommend(
     the next best by weighted average follow. With nothing to learn from, the default
     pipeline is returned.
     """
-    predicted = predict_pipeline_scores(meta_features, experience_db, k, candidates, exclude_dataset_id)
+    predicted = predict_pipeline_scores(meta_features, experience_db, k, candidates, exclude_dataset_id, relative)
     if predicted.empty:
         return [dict(DEFAULT_SPEC)]
 

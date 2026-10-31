@@ -7,7 +7,8 @@ For each dataset: hide it, let the recommender learn from the other datasets onl
 then see how good its top pick really was on the hidden dataset. Only pipelines that
 were tested on the hidden dataset can be judged, so the recommender is limited to those.
 
-"Utility" = the average of the five scores (equal weights). Higher is better.
+"Utility" = the weighted average of the five scores. Higher is better.
+Default is equal weights; use --focus performance to judge on accuracy alone.
 Percentile = share of the hidden dataset's tested pipelines that the top pick beats.
 """
 from __future__ import annotations
@@ -30,10 +31,15 @@ def main() -> None:
     parser.add_argument("--results", default=str(ROOT / "experiments" / "results.csv"))
     parser.add_argument("--k", type=int, default=3, help="how many similar datasets to learn from")
     parser.add_argument("--n", type=int, default=5, help="how many pipelines the recommender returns")
+    parser.add_argument("--focus", choices=["equal", "performance"], default="equal",
+                        help="equal = all five goals count the same; performance = accuracy only")
+    parser.add_argument("--absolute", action="store_true",
+                        help="average raw scores across datasets instead of relative ones (older behaviour)")
     args = parser.parse_args()
+    weights = {"performance": 1.0} if args.focus == "performance" else None
 
     table = pd.read_csv(args.results)
-    table["utility"] = table[SCORE_KEYS].mean(axis=1)
+    table["utility"] = table["performance"] if args.focus == "performance" else table[SCORE_KEYS].mean(axis=1)
     report = []
 
     for dataset_id in table["dataset_id"].unique():
@@ -44,7 +50,7 @@ def main() -> None:
         meta = held.iloc[0][META_FEATURE_KEYS].to_dict()
         tested = held[SPEC_KEYS].drop_duplicates().to_dict("records")
 
-        picks = recommend(meta, others, k=args.k, n=args.n, candidates=tested)
+        picks = recommend(meta, others, k=args.k, n=args.n, weights=weights, candidates=tested, relative=not args.absolute)
         merged = pd.DataFrame(picks).merge(held, on=SPEC_KEYS, how="left")
         if merged["utility"].isna().all():
             print(f"{dataset_id}: no overlap with the recommendation, skipped")
@@ -61,6 +67,7 @@ def main() -> None:
             "percentile": round(float((held["utility"] < top1).mean() * 100), 0),
         })
 
+    print(f"Judged on: {'performance only' if args.focus == 'performance' else 'all five goals, equal weights'}\n")
     result = pd.DataFrame(report)
     print(result.to_string(index=False))
     if not result.empty:
