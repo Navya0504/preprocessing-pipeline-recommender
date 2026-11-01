@@ -58,9 +58,9 @@ def summarise(differences: pd.Series, tie: float) -> dict:
 
 def line(label: str, s: dict) -> str:
     if not s:
-        return f"  {label:<26} no data"
+        return f"  {label:<30} no data"
     p = "n/a (too few differences)" if np.isnan(s["p"]) else f"{s['p']:.3f}"
-    return (f"  {label:<26} wins {s['wins']:>2} | ties {s['ties']:>2} | losses {s['losses']:>2} | "
+    return (f"  {label:<30} wins {s['wins']:>2} | ties {s['ties']:>2} | losses {s['losses']:>2} | "
             f"mean diff {s['mean_diff']:+.3f}  (95% CI {s['ci_low']:+.3f} to {s['ci_high']:+.3f}) | Wilcoxon p = {p}")
 
 
@@ -91,10 +91,13 @@ def main() -> None:
         print(f"=== Judged on: {FOCUS_NAMES[focus]} ({len(result)} datasets) ===")
         vs_default = summarise(result["top_pick"] - result["default"], args.tie)
         vs_random = summarise(result["top_pick"] - result["random"], args.tie)
+        vs_fixed = summarise(result["top_pick"] - result["global_best"], args.tie)
         print(line("recommender vs default", vs_default))
         print(f"    -> {verdict(vs_default)}")
         print(line("recommender vs random", vs_random))
         print(f"    -> {verdict(vs_random)}")
+        print(line("recommender vs one fixed best", vs_fixed))
+        print(f"    -> {verdict(vs_fixed)}")
         print()
 
     print("=== Minimum-gain rule: only add steps beyond the default if predicted accuracy gain >= X (k fixed) ===")

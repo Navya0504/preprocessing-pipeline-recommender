@@ -23,7 +23,30 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from backend.meta_features import META_FEATURE_KEYS  # noqa: E402
-from backend.meta_recommender import DEFAULT_SPEC, SCORE_KEYS, SPEC_KEYS, recommend  # noqa: E402
+from backend.meta_recommender import (  # noqa: E402
+    DEFAULT_SPEC, RELATIVE_SCORES, SCORE_KEYS, SPEC_KEYS, TIE_SPREAD, recommend,
+)
+
+
+def global_best_spec(others: pd.DataFrame, tested: list[dict], weights: dict | None) -> dict | None:
+    """The single pipeline with the best average result over ALL other datasets (no dataset similarity).
+
+    This is the "one fixed recipe for everybody" baseline: if the recommender cannot beat it,
+    looking at what a new dataset is like adds nothing. Uses the same relative scoring as the recommender.
+    """
+    allowed = {tuple(spec[key] for key in SPEC_KEYS) for spec in tested}
+    rows = others[[tuple(r) in allowed for r in others[SPEC_KEYS].itertuples(index=False, name=None)]].copy()
+    if rows.empty:
+        return None
+    for score in RELATIVE_SCORES:
+        low = rows.groupby("dataset_id")[score].transform("min")
+        high = rows.groupby("dataset_id")[score].transform("max")
+        span = (high - low).where((high - low) >= TIE_SPREAD)
+        rows[score] = ((rows[score] - low) / span).fillna(0.5)
+    w = weights or {key: 1.0 for key in SCORE_KEYS}
+    rows["_u"] = sum(rows[key] * w.get(key, 0.0) for key in SCORE_KEYS)
+    best = rows.groupby(SPEC_KEYS)["_u"].mean().idxmax()
+    return dict(zip(SPEC_KEYS, best))
 
 
 def leave_one_out(
@@ -37,7 +60,7 @@ def leave_one_out(
 ) -> pd.DataFrame:
     """One row per dataset: how good the recommender's top pick was on that hidden dataset.
 
-    Columns: dataset, top_pick, top_n_avg, default, random (average of all tested
+    Columns: dataset, global_best (one fixed pipeline for all), top_pick, top_n_avg, default, random (average of all tested
     pipelines), best, percentile. Values are not rounded.
     """
     table = table.copy()
@@ -61,8 +84,11 @@ def leave_one_out(
             continue
         top1 = float(merged["utility"].iloc[0])
         default = held[(held[SPEC_KEYS] == pd.Series(DEFAULT_SPEC)).all(axis=1)]["utility"]
+        fixed = global_best_spec(others, tested, weights)
+        fixed_row = held[(held[SPEC_KEYS] == pd.Series(fixed)).all(axis=1)]["utility"] if fixed else []
         rows.append({
             "dataset": dataset_id,
+            "global_best": float(fixed_row.iloc[0]) if len(fixed_row) else float("nan"),
             "top_pick": top1,
             "top_n_avg": float(merged["utility"].mean()),
             "default": float(default.iloc[0]) if len(default) else float("nan"),
@@ -95,6 +121,7 @@ def main() -> None:
         print(f"  top pick utility   {result['top_pick'].mean():.3f}")
         print(f"  all pipelines avg  {result['random'].mean():.3f}   (what random choice would give)")
         print(f"  default pipeline   {result['default'].mean():.3f}")
+        print(f"  one fixed best     {result['global_best'].mean():.3f}   (best average pipeline over the other datasets)")
         print(f"  best possible      {result['best'].mean():.3f}")
         print(f"  top pick beats on average {result['percentile'].mean():.0f}% of the tested pipelines")
 
