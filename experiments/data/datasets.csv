@@ -11,3 +11,12 @@ car_prices.csv,Price,regression,Unnamed: 0
 train_and_test2.csv,2urvived,classification,Passengerid
 WA_Fn-UseC_-Telco-Customer-Churn.csv,Churn,classification,customerID
 WineQT.csv,quality,classification,Id
+abalone.csv,Rings,regression,
+auto-mpg.csv,mpg,regression,
+Bike.csv,cnt,regression,instant|dteday|casual|registered
+Breast_Cancer.csv,Status,classification,
+california_housing.csv,MedHouseVal,regression,
+Concrete_Data.csv,strength,regression,
+house_price_regression_dataset.csv,House_Price,regression,
+mushrooms.csv,class,classification,
+UCI_Credit_Card.csv,default.payment.next.month,classification,ID
