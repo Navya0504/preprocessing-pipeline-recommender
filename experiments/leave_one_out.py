@@ -26,6 +26,52 @@ from backend.meta_features import META_FEATURE_KEYS  # noqa: E402
 from backend.meta_recommender import DEFAULT_SPEC, SCORE_KEYS, SPEC_KEYS, recommend  # noqa: E402
 
 
+def leave_one_out(
+    table: pd.DataFrame,
+    focus: str = "equal",
+    k: int = 3,
+    n: int = 5,
+    relative: bool = True,
+    verbose: bool = False,
+) -> pd.DataFrame:
+    """One row per dataset: how good the recommender's top pick was on that hidden dataset.
+
+    Columns: dataset, top_pick, top_n_avg, default, random (average of all tested
+    pipelines), best, percentile. Values are not rounded.
+    """
+    table = table.copy()
+    weights = {"performance": 1.0} if focus == "performance" else None
+    table["utility"] = table["performance"] if focus == "performance" else table[SCORE_KEYS].mean(axis=1)
+    rows = []
+
+    for dataset_id in table["dataset_id"].unique():
+        held = table[table["dataset_id"] == dataset_id].reset_index(drop=True)
+        others = table[table["dataset_id"] != dataset_id]
+        if others["dataset_id"].nunique() == 0:
+            continue
+        meta = held.iloc[0][META_FEATURE_KEYS].to_dict()
+        tested = held[SPEC_KEYS].drop_duplicates().to_dict("records")
+
+        picks = recommend(meta, others, k=k, n=n, weights=weights, candidates=tested, relative=relative)
+        merged = pd.DataFrame(picks).merge(held, on=SPEC_KEYS, how="left")
+        if merged["utility"].isna().all():
+            if verbose:
+                print(f"{dataset_id}: no overlap with the recommendation, skipped")
+            continue
+        top1 = float(merged["utility"].iloc[0])
+        default = held[(held[SPEC_KEYS] == pd.Series(DEFAULT_SPEC)).all(axis=1)]["utility"]
+        rows.append({
+            "dataset": dataset_id,
+            "top_pick": top1,
+            "top_n_avg": float(merged["utility"].mean()),
+            "default": float(default.iloc[0]) if len(default) else float("nan"),
+            "random": float(held["utility"].mean()),
+            "best": float(held["utility"].max()),
+            "percentile": float((held["utility"] < top1).mean() * 100),
+        })
+    return pd.DataFrame(rows)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results", default=str(ROOT / "experiments" / "results.csv"))
@@ -36,44 +82,16 @@ def main() -> None:
     parser.add_argument("--absolute", action="store_true",
                         help="average raw scores across datasets instead of relative ones (older behaviour)")
     args = parser.parse_args()
-    weights = {"performance": 1.0} if args.focus == "performance" else None
 
-    table = pd.read_csv(args.results)
-    table["utility"] = table["performance"] if args.focus == "performance" else table[SCORE_KEYS].mean(axis=1)
-    report = []
-
-    for dataset_id in table["dataset_id"].unique():
-        held = table[table["dataset_id"] == dataset_id].reset_index(drop=True)
-        others = table[table["dataset_id"] != dataset_id]
-        if others["dataset_id"].nunique() == 0:
-            continue
-        meta = held.iloc[0][META_FEATURE_KEYS].to_dict()
-        tested = held[SPEC_KEYS].drop_duplicates().to_dict("records")
-
-        picks = recommend(meta, others, k=args.k, n=args.n, weights=weights, candidates=tested, relative=not args.absolute)
-        merged = pd.DataFrame(picks).merge(held, on=SPEC_KEYS, how="left")
-        if merged["utility"].isna().all():
-            print(f"{dataset_id}: no overlap with the recommendation, skipped")
-            continue
-        top1 = float(merged["utility"].iloc[0])
-        default = held[(held[SPEC_KEYS] == pd.Series(DEFAULT_SPEC)).all(axis=1)]["utility"]
-        report.append({
-            "dataset": dataset_id,
-            "top pick": round(top1, 3),
-            f"top {args.n} avg": round(float(merged["utility"].mean()), 3),
-            "default": round(float(default.iloc[0]), 3) if len(default) else float("nan"),
-            "all avg": round(float(held["utility"].mean()), 3),
-            "best": round(float(held["utility"].max()), 3),
-            "percentile": round(float((held["utility"] < top1).mean() * 100), 0),
-        })
-
+    result = leave_one_out(pd.read_csv(args.results), args.focus, args.k, args.n, not args.absolute, verbose=True)
     print(f"Judged on: {'performance only' if args.focus == 'performance' else 'all five goals, equal weights'}\n")
-    result = pd.DataFrame(report)
-    print(result.to_string(index=False))
+    shown = result.rename(columns={"top_pick": "top pick", "top_n_avg": f"top {args.n} avg", "random": "all avg"}).round(3)
+    shown["percentile"] = shown["percentile"].round(0)
+    print(shown.to_string(index=False))
     if not result.empty:
         print(f"\nAverage over {len(result)} datasets:")
-        print(f"  top pick utility   {result['top pick'].mean():.3f}")
-        print(f"  all pipelines avg  {result['all avg'].mean():.3f}   (what random choice would give)")
+        print(f"  top pick utility   {result['top_pick'].mean():.3f}")
+        print(f"  all pipelines avg  {result['random'].mean():.3f}   (what random choice would give)")
         print(f"  default pipeline   {result['default'].mean():.3f}")
         print(f"  best possible      {result['best'].mean():.3f}")
         print(f"  top pick beats on average {result['percentile'].mean():.0f}% of the tested pipelines")
