@@ -179,3 +179,24 @@ def test_scores_are_compared_within_each_dataset_not_across_them():
 def test_relative_scores_stay_between_zero_and_one(db):
     predicted = predict_pipeline_scores(meta(), db, k=3)
     assert predicted[SCORE_KEYS].min().min() >= 0.0 and predicted[SCORE_KEYS].max().max() <= 1.0
+
+
+def test_near_identical_scores_on_a_dataset_count_as_a_tie():
+    # On "easy", every pipeline scores 0.998 to 0.999: the differences are noise, not information.
+    easy = meta(n_rows=900)
+    db = experience_table([("easy", easy, [(SPEC_A, scores(0.999)), (SPEC_B, scores(0.998)), (SPEC_C, scores(0.9985))])])
+    predicted = predict_pipeline_scores(meta(), db, k=1)
+    assert (predicted["performance"] == 0.5).all()
+    # Real differences (here 0.1) are still used.
+    db = experience_table([("real", easy, [(SPEC_A, scores(0.9)), (SPEC_B, scores(0.8)), (SPEC_C, scores(0.85))])])
+    perf = predict_pipeline_scores(meta(), db, k=1).set_index(SPEC_KEYS)["performance"]
+    assert perf.loc[tuple(SPEC_A[key] for key in SPEC_KEYS)] == pytest.approx(1.0)
+    assert perf.loc[tuple(SPEC_B[key] for key in SPEC_KEYS)] == pytest.approx(0.0)
+
+
+def test_min_gain_off_changes_nothing_and_huge_gain_leaves_only_the_default(db):
+    query = meta()
+    base = recommend(query, db, k=2, n=5)
+    assert recommend(query, db, k=2, n=5, min_gain=0.0) == base
+    strict = recommend(query, db, k=2, n=5, min_gain=5.0)
+    assert all(spec == DEFAULT_SPEC for spec in strict)

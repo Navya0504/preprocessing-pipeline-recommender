@@ -32,6 +32,7 @@ def leave_one_out(
     k: int = 3,
     n: int = 5,
     relative: bool = True,
+    min_gain: float = 0.0,
     verbose: bool = False,
 ) -> pd.DataFrame:
     """One row per dataset: how good the recommender's top pick was on that hidden dataset.
@@ -52,7 +53,7 @@ def leave_one_out(
         meta = held.iloc[0][META_FEATURE_KEYS].to_dict()
         tested = held[SPEC_KEYS].drop_duplicates().to_dict("records")
 
-        picks = recommend(meta, others, k=k, n=n, weights=weights, candidates=tested, relative=relative)
+        picks = recommend(meta, others, k=k, n=n, weights=weights, candidates=tested, relative=relative, min_gain=min_gain)
         merged = pd.DataFrame(picks).merge(held, on=SPEC_KEYS, how="left")
         if merged["utility"].isna().all():
             if verbose:
@@ -79,11 +80,12 @@ def main() -> None:
     parser.add_argument("--n", type=int, default=5, help="how many pipelines the recommender returns")
     parser.add_argument("--focus", choices=["equal", "performance"], default="equal",
                         help="equal = all five goals count the same; performance = accuracy only")
+    parser.add_argument("--min-gain", type=float, default=0.0, help="only add steps beyond the default if predicted accuracy gain is at least this")
     parser.add_argument("--absolute", action="store_true",
                         help="average raw scores across datasets instead of relative ones (older behaviour)")
     args = parser.parse_args()
 
-    result = leave_one_out(pd.read_csv(args.results), args.focus, args.k, args.n, not args.absolute, verbose=True)
+    result = leave_one_out(pd.read_csv(args.results), args.focus, args.k, args.n, not args.absolute, args.min_gain, verbose=True)
     print(f"Judged on: {'performance only' if args.focus == 'performance' else 'all five goals, equal weights'}\n")
     shown = result.rename(columns={"top_pick": "top pick", "top_n_avg": f"top {args.n} avg", "random": "all avg"}).round(3)
     shown["percentile"] = shown["percentile"].round(0)

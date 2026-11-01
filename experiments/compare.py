@@ -97,6 +97,22 @@ def main() -> None:
         print(f"    -> {verdict(vs_random)}")
         print()
 
+    print("=== Minimum-gain rule: only add steps beyond the default if predicted accuracy gain >= X (k fixed) ===")
+    print("Decided before looking: X in 0, 0.1, 0.2, 0.3. All are shown; none is picked on these results.")
+    rows = []
+    for gain in [0.0, 0.1, 0.2, 0.3]:
+        row = {"min_gain": gain}
+        for focus in ["performance", "equal"]:
+            result = leave_one_out(table, focus=focus, k=args.k, n=args.n, min_gain=gain)
+            diff = result["top_pick"] - result["default"]
+            stats = summarise(diff, args.tie)
+            row[f"{focus}: top pick"] = round(result["top_pick"].mean(), 3)
+            row[f"{focus}: W/T/L vs default"] = f"{stats['wins']}/{stats['ties']}/{stats['losses']}"
+            row[f"{focus}: p"] = "n/a" if np.isnan(stats["p"]) else round(stats["p"], 3)
+        rows.append(row)
+    print(pd.DataFrame(rows).to_string(index=False))
+    print()
+
     ks = [int(x) for x in args.sweep.split(",") if x.strip()]
     print("=== How many similar datasets to learn from (k)? Mean utility of the top pick ===")
     rows = []

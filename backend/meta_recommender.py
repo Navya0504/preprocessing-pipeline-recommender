@@ -10,7 +10,7 @@ How it works
     3. For each pipeline, the scores it earned on the neighbours are averaged, giving
        more weight to closer neighbours. This is the predicted score. Performance,
        efficiency and robustness are first made RELATIVE within each past dataset
-       (0 = worst pipeline there, 1 = best), because an accuracy of 0.9 on one dataset
+       (0 = worst pipeline there, 1 = best; 0.5 for all if they are within 0.02 of each other, a tie), because an accuracy of 0.9 on one dataset
        and an R^2 of 0.2 on another cannot be averaged directly.
     4. The predicted scores go through Pareto selection, so the recommendations are the
        pipelines nothing else beats on all five goals, ranked by weighted average.
@@ -58,6 +58,9 @@ TASK_PENALTY = 1.0  # added to the distance when a past dataset has a different 
 WEIGHT_SOFTENER = 0.1  # neighbour weight = 1 / (distance + this)
 # Scores whose size depends on the dataset; simplicity and explainability depend only on the pipeline.
 RELATIVE_SCORES = ["performance", "efficiency", "robustness"]
+# If every pipeline on a dataset scores within this of each other (0..1 scale), the differences
+# are noise (very easy data, or timings too small to matter), so they are treated as a tie.
+TIE_SPREAD = 0.02
 
 
 # ------------------------------------------------------------------ fingerprints
@@ -159,7 +162,7 @@ def predict_pipeline_scores(
         for score in RELATIVE_SCORES:
             low = rows.groupby("dataset_id")[score].transform("min")
             high = rows.groupby("dataset_id")[score].transform("max")
-            span = (high - low).where(high > low)
+            span = (high - low).where((high - low) >= TIE_SPREAD)
             rows[score] = ((rows[score] - low) / span).fillna(0.5)
 
     records = []
@@ -190,8 +193,14 @@ def recommend(
     candidates: list[dict] | None = None,
     exclude_dataset_id: str | None = None,
     relative: bool = True,
+    min_gain: float = 0.0,
 ) -> list[dict]:
     """Return up to n ranked pipeline specs learned from similar datasets.
+
+    min_gain (0 = off): a pipeline other than the default is only kept if its predicted
+    performance beats the default pipeline's predicted performance by at least this much
+    (on the 0..1 relative scale). It stops the recommender adding steps for no real gain.
+    Ignored when the default pipeline has no prediction.
 
     The Pareto front of the predicted scores comes first, ordered by weighted average
     (equal weights unless `weights` is given). If the front has fewer than n pipelines,
@@ -201,6 +210,12 @@ def recommend(
     predicted = predict_pipeline_scores(meta_features, experience_db, k, candidates, exclude_dataset_id, relative)
     if predicted.empty:
         return [dict(DEFAULT_SPEC)]
+
+    if min_gain > 0:
+        is_default = predicted.apply(lambda row: _spec_key(row) == _spec_key(DEFAULT_SPEC), axis=1)
+        if is_default.any():
+            floor = float(predicted.loc[is_default, "performance"].iloc[0]) + min_gain
+            predicted = predicted[is_default | (predicted["performance"] >= floor)].reset_index(drop=True)
 
     predicted = predicted.assign(_utility=_utility(predicted, weights))
     front_keys = {_spec_key(row) for _, row in pareto_front(predicted).iterrows()}
