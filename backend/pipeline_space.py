@@ -176,6 +176,12 @@ class IQRClipper(BaseEstimator, TransformerMixin):
     def transform(self, X):
         return np.clip(np.asarray(X, dtype=float), self.low_, self.high_)
 
+    def get_feature_names_out(self, input_features=None):
+        """Column names are unchanged (lets the pipeline report names of its output columns)."""
+        if input_features is None:
+            input_features = [f"x{i}" for i in range(len(self.low_))]
+        return np.asarray(input_features, dtype=object)
+
 
 def _take(values, mask):
     """Row-select from a DataFrame/Series/array with a boolean mask."""
