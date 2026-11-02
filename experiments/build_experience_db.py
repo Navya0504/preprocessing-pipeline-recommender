@@ -3,7 +3,7 @@
 Run from the project root:
     python experiments/build_experience_db.py
 
-It reads experiments/data/datasets.csv (columns: file,target,task,drop) and writes
+It reads experiments/data/datasets.csv (columns: file,target,task,drop,tidy; tidy=1 cleans messy text) and writes
 experiments/results.csv, one row per (dataset, pipeline). Results are saved after
 each dataset, and datasets already in results.csv are skipped, so you can stop
 (Ctrl+C) and run it again to continue.
@@ -24,6 +24,7 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,6 +39,21 @@ DEFAULT_SPEC = {"imputer": "median", "encoder": "onehot", "scaler": "standard", 
 SEED = 42
 
 
+def tidy(df: pd.DataFrame) -> pd.DataFrame:
+    """Fix text-formatting problems: trim spaces/tabs, turn "?" and empty text into gaps, and turn
+    text columns that are really numbers (at least 90% of their values) into numeric columns."""
+    df = df.copy()
+    for column in df.select_dtypes(include="object").columns:
+        text = df[column].astype("string").str.strip().replace({"?": pd.NA, "": pd.NA})
+        numeric = pd.to_numeric(text, errors="coerce")
+        filled = int(text.notna().sum())
+        if filled and int(numeric.notna().sum()) >= 0.9 * filled:
+            df[column] = numeric.astype("float64")
+        else:
+            df[column] = text.astype(object).where(text.notna(), np.nan)
+    return df
+
+
 def load_dataset(data_dir: Path, row: pd.Series, max_rows: int) -> pd.DataFrame:
     df = pd.read_csv(data_dir / row["file"], encoding_errors="replace", low_memory=False)
     drop_text = row["drop"] if pd.notna(row.get("drop")) else ""
@@ -46,6 +62,8 @@ def load_dataset(data_dir: Path, row: pd.Series, max_rows: int) -> pd.DataFrame:
     if missing:
         raise ValueError(f"columns not found in {row['file']}: {missing}")
     df = df.drop(columns=drop)
+    if str(row.get("tidy", "")).strip() in ("1", "1.0", "yes", "true"):
+        df = tidy(df)
     if len(df) > max_rows:
         df = df.sample(n=max_rows, random_state=SEED).reset_index(drop=True)
     return df

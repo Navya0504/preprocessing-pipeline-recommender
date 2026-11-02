@@ -1,22 +1,31 @@
-file,target,task,drop
-adult.csv,income,classification,
-bank.csv,deposit,classification,
-heart.csv,target,classification,
-horse.csv,outcome,classification,hospital_number
-house_prices.csv,Price (in rupees),regression,Index|Amount(in rupees)
-insurance.csv,charges,regression,
-iris.csv,species,classification,
-pima-indians-diabetes.csv,outcome,classification,
-car_prices.csv,Price,regression,Unnamed: 0
-train_and_test2.csv,2urvived,classification,Passengerid
-WA_Fn-UseC_-Telco-Customer-Churn.csv,Churn,classification,customerID
-WineQT.csv,quality,classification,Id
-abalone.csv,Rings,regression,
-auto-mpg.csv,mpg,regression,
-Bike.csv,cnt,regression,instant|dteday|casual|registered
-Breast_Cancer.csv,Status,classification,
-california_housing.csv,MedHouseVal,regression,
-Concrete_Data.csv,strength,regression,
-house_price_regression_dataset.csv,House_Price,regression,
-mushrooms.csv,class,classification,
-UCI_Credit_Card.csv,default.payment.next.month,classification,ID
+file,target,task,drop,tidy
+adult.csv,income,classification,,
+bank.csv,deposit,classification,,
+heart.csv,target,classification,,
+horse.csv,outcome,classification,hospital_number,
+house_prices.csv,Price (in rupees),regression,Index|Amount(in rupees),
+insurance.csv,charges,regression,,
+iris.csv,species,classification,,
+pima-indians-diabetes.csv,outcome,classification,,
+car_prices.csv,Price,regression,Unnamed: 0,
+train_and_test2.csv,2urvived,classification,Passengerid,
+WA_Fn-UseC_-Telco-Customer-Churn.csv,Churn,classification,customerID,
+WineQT.csv,quality,classification,Id,
+abalone.csv,Rings,regression,,
+auto-mpg.csv,mpg,regression,,
+Bike.csv,cnt,regression,instant|dteday|casual|registered,
+Breast_Cancer.csv,Status,classification,,
+california_housing.csv,MedHouseVal,regression,,
+Concrete_Data.csv,strength,regression,,
+house_price_regression_dataset.csv,House_Price,regression,,
+mushrooms.csv,class,classification,,
+UCI_Credit_Card.csv,default.payment.next.month,classification,ID,
+AB_NYC_2019.csv,price,regression,id|name|host_id|host_name|last_review,
+credit_risk_dataset.csv,loan_status,classification,,
+healthcare-dataset-stroke-data.csv,stroke,classification,id,
+hotel_bookings.csv,is_canceled,classification,reservation_status|reservation_status_date,
+housing_train.csv,SalePrice,regression,Id,
+IBM HR Employee Attrition Data.csv,Attrition,classification,EmployeeCount|EmployeeNumber|Over18|StandardHours,
+kidney_disease.csv,classification,classification,id,1
+Loan Prediction.csv,Risk_Flag,classification,Id,
+melb_data.csv,Price,regression,Address,

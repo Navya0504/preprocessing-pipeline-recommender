@@ -80,14 +80,28 @@ def main() -> None:
     parser.add_argument("--k", type=int, default=3)
     parser.add_argument("--n", type=int, default=5)
     parser.add_argument("--tie", type=float, default=0.005)
+    parser.add_argument("--last", type=int, default=0,
+                        help="report only on the last N datasets listed in datasets.csv (they are still judged "
+                             "by learning from all the others). Use it to look at the newest datasets separately")
     parser.add_argument("--sweep", default="1,2,3,5,8", help="values of k to try, comma separated")
     args = parser.parse_args()
 
     table = pd.read_csv(args.results)
+    keep = None
+    if args.last:
+        sheet = pd.read_csv(ROOT / "experiments" / "data" / "datasets.csv")
+        keep = {name.replace(".csv", "") for name in sheet["file"].tolist()[-args.last:]}
+
+    def loo(**kwargs):
+        result = leave_one_out(table, **kwargs)
+        return result if keep is None else result[result["dataset"].isin(keep)].reset_index(drop=True)
+
+    if keep:
+        print(f"Reporting only on the last {args.last} datasets in datasets.csv.")
     print(f"Results: {len(table)} rows, {table['dataset_id'].nunique()} datasets. Recommender learns from k={args.k} similar datasets.\n")
 
     for focus in ["performance", "equal"]:
-        result = leave_one_out(table, focus=focus, k=args.k, n=args.n)
+        result = loo(focus=focus, k=args.k, n=args.n)
         print(f"=== Judged on: {FOCUS_NAMES[focus]} ({len(result)} datasets) ===")
         vs_default = summarise(result["top_pick"] - result["default"], args.tie)
         vs_random = summarise(result["top_pick"] - result["random"], args.tie)
@@ -106,7 +120,7 @@ def main() -> None:
     for gain in [0.0, 0.1, 0.2, 0.3]:
         row = {"min_gain": gain}
         for focus in ["performance", "equal"]:
-            result = leave_one_out(table, focus=focus, k=args.k, n=args.n, min_gain=gain)
+            result = loo(focus=focus, k=args.k, n=args.n, min_gain=gain)
             diff = result["top_pick"] - result["default"]
             stats = summarise(diff, args.tie)
             row[f"{focus}: top pick"] = round(result["top_pick"].mean(), 3)
@@ -122,7 +136,7 @@ def main() -> None:
     for k in ks:
         row = {"k": k}
         for focus in ["performance", "equal"]:
-            result = leave_one_out(table, focus=focus, k=k, n=args.n)
+            result = loo(focus=focus, k=k, n=args.n)
             row[f"{focus}: top pick"] = round(result["top_pick"].mean(), 3)
             row[f"{focus}: default"] = round(result["default"].mean(), 3)
         rows.append(row)
