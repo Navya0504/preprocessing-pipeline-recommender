@@ -24,11 +24,11 @@ sys.path.insert(0, str(ROOT))
 
 from backend.meta_features import META_FEATURE_KEYS  # noqa: E402
 from backend.meta_recommender import (  # noqa: E402
-    DEFAULT_SPEC, RELATIVE_SCORES, SCORE_KEYS, SPEC_KEYS, TIE_SPREAD, recommend,
+    DEFAULT_SPEC, RELATIVE_SCORES, SCORE_KEYS, SPEC_KEYS, TIE_SPREAD, accuracy_only, recommend,
 )
 
 
-def global_best_spec(others: pd.DataFrame, tested: list[dict], weights: dict | None) -> dict | None:
+def global_best_spec(others: pd.DataFrame, tested: list[dict], weights: dict | None, relative: bool) -> dict | None:
     """The single pipeline with the best average result over ALL other datasets (no dataset similarity).
 
     This is the "one fixed recipe for everybody" baseline: if the recommender cannot beat it,
@@ -38,7 +38,7 @@ def global_best_spec(others: pd.DataFrame, tested: list[dict], weights: dict | N
     rows = others[[tuple(r) in allowed for r in others[SPEC_KEYS].itertuples(index=False, name=None)]].copy()
     if rows.empty:
         return None
-    for score in RELATIVE_SCORES:
+    for score in (RELATIVE_SCORES if relative else []):
         low = rows.groupby("dataset_id")[score].transform("min")
         high = rows.groupby("dataset_id")[score].transform("max")
         span = (high - low).where((high - low) >= TIE_SPREAD)
@@ -54,7 +54,7 @@ def leave_one_out(
     focus: str = "equal",
     k: int = 3,
     n: int = 5,
-    relative: bool = True,
+    relative: bool | None = None,
     min_gain: float = 0.0,
     verbose: bool = False,
 ) -> pd.DataFrame:
@@ -84,7 +84,7 @@ def leave_one_out(
             continue
         top1 = float(merged["utility"].iloc[0])
         default = held[(held[SPEC_KEYS] == pd.Series(DEFAULT_SPEC)).all(axis=1)]["utility"]
-        fixed = global_best_spec(others, tested, weights)
+        fixed = global_best_spec(others, tested, weights, accuracy_only(weights) if relative is None else relative)
         fixed_row = held[(held[SPEC_KEYS] == pd.Series(fixed)).all(axis=1)]["utility"] if fixed else []
         rows.append({
             "dataset": dataset_id,
@@ -107,11 +107,12 @@ def main() -> None:
     parser.add_argument("--focus", choices=["equal", "performance"], default="equal",
                         help="equal = all five goals count the same; performance = accuracy only")
     parser.add_argument("--min-gain", type=float, default=0.0, help="only add steps beyond the default if predicted accuracy gain is at least this")
-    parser.add_argument("--absolute", action="store_true",
-                        help="average raw scores across datasets instead of relative ones (older behaviour)")
+    scoring = parser.add_mutually_exclusive_group()
+    scoring.add_argument("--absolute", action="store_true", help="force raw scores averaged across datasets")
+    scoring.add_argument("--relative", action="store_true", help="force relative (per-dataset 0..1) scores")
     args = parser.parse_args()
 
-    result = leave_one_out(pd.read_csv(args.results), args.focus, args.k, args.n, not args.absolute, args.min_gain, verbose=True)
+    result = leave_one_out(pd.read_csv(args.results), args.focus, args.k, args.n, True if args.relative else (False if args.absolute else None), args.min_gain, verbose=True)
     print(f"Judged on: {'performance only' if args.focus == 'performance' else 'all five goals, equal weights'}\n")
     shown = result.rename(columns={"top_pick": "top pick", "top_n_avg": f"top {args.n} avg", "random": "all avg"}).round(3)
     shown["percentile"] = shown["percentile"].round(0)

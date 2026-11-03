@@ -168,7 +168,7 @@ def test_scores_are_compared_within_each_dataset_not_across_them():
         ("easy", easy, [(SPEC_A, scores(0.92)), (SPEC_B, scores(0.88)), (SPEC_C, scores(0.89))]),
         ("hard", hard, [(SPEC_A, scores(0.25)), (SPEC_B, scores(0.15)), (SPEC_C, scores(0.18))]),
     ])
-    relative = predict_pipeline_scores(meta(), db, k=2).set_index(SPEC_KEYS)["performance"]
+    relative = predict_pipeline_scores(meta(), db, k=2, relative=True).set_index(SPEC_KEYS)["performance"]
     raw = predict_pipeline_scores(meta(), db, k=2, relative=False).set_index(SPEC_KEYS)["performance"]
     key = tuple(SPEC_A[name] for name in SPEC_KEYS)
     assert relative.loc[key] == pytest.approx(1.0)
@@ -177,7 +177,7 @@ def test_scores_are_compared_within_each_dataset_not_across_them():
 
 
 def test_relative_scores_stay_between_zero_and_one(db):
-    predicted = predict_pipeline_scores(meta(), db, k=3)
+    predicted = predict_pipeline_scores(meta(), db, k=3, relative=True)
     assert predicted[SCORE_KEYS].min().min() >= 0.0 and predicted[SCORE_KEYS].max().max() <= 1.0
 
 
@@ -185,11 +185,11 @@ def test_near_identical_scores_on_a_dataset_count_as_a_tie():
     # On "easy", every pipeline scores 0.998 to 0.999: the differences are noise, not information.
     easy = meta(n_rows=900)
     db = experience_table([("easy", easy, [(SPEC_A, scores(0.999)), (SPEC_B, scores(0.998)), (SPEC_C, scores(0.9985))])])
-    predicted = predict_pipeline_scores(meta(), db, k=1)
+    predicted = predict_pipeline_scores(meta(), db, k=1, relative=True)
     assert (predicted["performance"] == 0.5).all()
     # Real differences (here 0.1) are still used.
     db = experience_table([("real", easy, [(SPEC_A, scores(0.9)), (SPEC_B, scores(0.8)), (SPEC_C, scores(0.85))])])
-    perf = predict_pipeline_scores(meta(), db, k=1).set_index(SPEC_KEYS)["performance"]
+    perf = predict_pipeline_scores(meta(), db, k=1, relative=True).set_index(SPEC_KEYS)["performance"]
     assert perf.loc[tuple(SPEC_A[key] for key in SPEC_KEYS)] == pytest.approx(1.0)
     assert perf.loc[tuple(SPEC_B[key] for key in SPEC_KEYS)] == pytest.approx(0.0)
 
@@ -200,3 +200,19 @@ def test_min_gain_off_changes_nothing_and_huge_gain_leaves_only_the_default(db):
     assert recommend(query, db, k=2, n=5, min_gain=0.0) == base
     strict = recommend(query, db, k=2, n=5, min_gain=5.0)
     assert all(spec == DEFAULT_SPEC for spec in strict)
+
+
+def test_scoring_mode_is_chosen_from_the_weights():
+    from backend.meta_recommender import accuracy_only
+
+    assert accuracy_only({"performance": 1.0})
+    assert not accuracy_only(None)
+    assert not accuracy_only({})
+    assert not accuracy_only({"performance": 1.0, "simplicity": 0.5})
+    assert not accuracy_only({"simplicity": 1.0})
+
+
+def test_automatic_mode_matches_the_forced_mode(db):
+    query = meta()
+    assert recommend(query, db, k=2, n=3, weights={"performance": 1.0}) == recommend(query, db, k=2, n=3, weights={"performance": 1.0}, relative=True)
+    assert recommend(query, db, k=2, n=3) == recommend(query, db, k=2, n=3, relative=False)

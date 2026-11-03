@@ -8,9 +8,9 @@ How it works
     2. Fingerprints are put on a common scale and compared with the new dataset's
        fingerprint. The k closest past datasets are its "neighbours".
     3. For each pipeline, the scores it earned on the neighbours are averaged, giving
-       more weight to closer neighbours. This is the predicted score. Performance,
-       efficiency and robustness are first made RELATIVE within each past dataset
-       (0 = worst pipeline there, 1 = best; 0.5 for all if they are within 0.02 of each other, a tie), because an accuracy of 0.9 on one dataset
+       more weight to closer neighbours. This is the predicted score. When only accuracy
+       counts, performance, efficiency and robustness are first made RELATIVE within each past
+       dataset (0 = worst pipeline there, 1 = best; 0.5 for all if they are within 0.02 of each other, a tie), because an accuracy of 0.9 on one dataset
        and an R^2 of 0.2 on another cannot be averaged directly.
     4. The predicted scores go through Pareto selection, so the recommendations are the
        pipelines nothing else beats on all five goals, ranked by weighted average.
@@ -132,11 +132,11 @@ def predict_pipeline_scores(
     k: int = 5,
     candidates: list[dict] | None = None,
     exclude_dataset_id: str | None = None,
-    relative: bool = True,
+    relative: bool = False,
 ) -> pd.DataFrame:
     """Predict the five scores of each pipeline on the new dataset.
 
-    With relative=True (default), performance, efficiency and robustness are rescaled
+    With relative=True (default is False, see recommend() for when to use it), performance, efficiency and robustness are rescaled
     within each past dataset to 0..1 before averaging (0 = worst pipeline tried there,
     1 = best), so the prediction says "how much better than the others", not an absolute score.
 
@@ -176,6 +176,13 @@ def predict_pipeline_scores(
     return pd.DataFrame(records, columns=columns)
 
 
+def accuracy_only(weights: dict[str, float] | None) -> bool:
+    """True when performance is the only goal with a positive weight."""
+    if not weights:
+        return False
+    return weights.get("performance", 0.0) > 0 and all(weights.get(key, 0.0) <= 0 for key in SCORE_KEYS if key != "performance")
+
+
 def _utility(table: pd.DataFrame, weights: dict[str, float] | None) -> pd.Series:
     weights = weights or {key: 1.0 for key in SCORE_KEYS}
     total = sum(weights.get(key, 0.0) for key in SCORE_KEYS)
@@ -192,10 +199,16 @@ def recommend(
     weights: dict[str, float] | None = None,
     candidates: list[dict] | None = None,
     exclude_dataset_id: str | None = None,
-    relative: bool = True,
+    relative: bool | None = None,
     min_gain: float = 0.0,
 ) -> list[dict]:
     """Return up to n ranked pipeline specs learned from similar datasets.
+
+    relative: None (default) chooses automatically. Relative scoring (see predict_pipeline_scores) is
+    used when ONLY performance counts in `weights`, because raw accuracies of different datasets cannot
+    be averaged. When several goals count, raw scores are used: relative scoring stretched small accuracy
+    gains until they outweighed simplicity (leave-one-dataset-out, 30 datasets: +0.020 for raw scores).
+    Pass True or False to force one.
 
     min_gain (0 = off): a pipeline other than the default is only kept if its predicted
     performance beats the default pipeline's predicted performance by at least this much
@@ -207,6 +220,8 @@ def recommend(
     the next best by weighted average follow. With nothing to learn from, the default
     pipeline is returned.
     """
+    if relative is None:
+        relative = accuracy_only(weights)
     predicted = predict_pipeline_scores(meta_features, experience_db, k, candidates, exclude_dataset_id, relative)
     if predicted.empty:
         return [dict(DEFAULT_SPEC)]
