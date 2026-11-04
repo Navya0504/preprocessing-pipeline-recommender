@@ -156,6 +156,34 @@ def explain(meta_features: dict, chosen_spec: dict, scores: dict,
 Uploaded files are processed in memory or in a temporary folder and deleted after the request.
 
 ---
+### `/clean`
+
+- **Method:** POST
+- **Path:** `/clean`
+- **Input:** Multipart form data:
+  - `recommendation_id`: ID returned by `/recommend`.
+  - `file`: CSV file to clean.
+- **Success response:** Cleaned CSV as a downloadable file named `cleaned_dataset.csv`.
+- **Error cases:**
+  - `404`: Unknown recommendation ID.
+  - `422`: Missing recommendation ID.
+  - `400`: Empty or unreadable CSV file, or cleaning error.
+
+**Example request:**
+
+```bash
+curl -X POST "http://127.0.0.1:8000/clean" -F "recommendation_id=YOUR_ID" -F "file=@data.csv" -o cleaned_dataset.csv
+```
+
+**Example response:**
+
+```http
+HTTP/1.1 200 OK
+Content-Disposition: attachment; filename=cleaned_dataset.csv
+Content-Type: text/csv
+```
+
+The downloaded file contains the cleaned CSV data.
 
 ## 4. Working rules
 1. Never push directly to `main`. Use your branch and open a pull request. At least one teammate reviews before merging.
