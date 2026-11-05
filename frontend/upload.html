@@ -1,0 +1,36 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Dataset | PreprocessAI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h2>PreprocessAI</h2>
+        <nav>
+            <a href="index.html">Home</a>
+        </nav>
+    </header>
+
+    <main class="upload-container">
+        <h1>Upload Your Dataset</h1>
+        <p>Upload a CSV file to begin dataset analysis.</p>
+
+        <div class="upload-box">
+            <input type="file" id="datasetFile" accept=".csv">
+
+            <p id="fileName">No file selected</p>
+
+            <button id="analyzeButton">Analyze Dataset</button>
+
+            <p id="statusMessage"></p>
+        </div>
+    </main>
+
+    <script src="upload.js"></script>
+</body>
+</html>

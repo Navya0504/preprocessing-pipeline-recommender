@@ -1,0 +1,40 @@
+/* RESPONSIVE DESIGN */
+
+@media (max-width: 900px) {
+    body {
+        grid-template-columns: 1fr;
+    }
+
+    .showcase {
+        display: flex;
+        min-height: 400px;
+    }
+
+    .auth {
+        padding: 35px 24px;
+    }
+
+    .brand {
+        margin-bottom: 36px;
+    }
+}
+
+@media (max-width: 420px) {
+    .social {
+        grid-template-columns: 1fr;
+    }
+
+    .showcase {
+        padding: 35px 20px;
+    }
+
+    .auth {
+        padding: 25px 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+    }
+}
