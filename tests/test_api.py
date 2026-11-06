@@ -266,3 +266,35 @@ def test_recommend_uses_k_three(monkeypatch):
     assert calls["predict"] == 3
     assert calls["neighbours"] == 3
 
+
+def test_clean_empty_file(monkeypatch):
+    """Test cleaning with an empty uploaded file."""
+
+    result = make_recommendation(monkeypatch)
+
+    response = client.post(
+        "/clean",
+        data={"recommendation_id": result["recommendation_id"]},
+        files={"file": ("empty.csv", b"", "text/csv")}
+    )
+
+    assert response.status_code == 400
+
+
+def test_explain_unknown_recommendation():
+    """Test explanation with an unknown recommendation ID."""
+
+    response = client.post(
+        "/explain",
+        json={"recommendation_id": "invalid-id"}
+    )
+
+    assert response.status_code == 404
+
+
+def test_export_unknown_recommendation():
+    """Test export with an unknown recommendation ID."""
+
+    response = client.get("/export/invalid-id")
+
+    assert response.status_code == 404

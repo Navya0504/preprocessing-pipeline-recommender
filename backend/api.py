@@ -41,7 +41,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -349,7 +349,15 @@ async def clean_uploaded_dataset(
             detail="Recommendation not found. Generate a new recommendation.",
         )
 
-    df = read_csv_file(await file.read())
+    contents = await file.read()
+
+    if not contents:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is empty.",
+        )
+
+    df = read_csv_file(contents)
 
     recommendation = RECOMMENDATIONS[recommendation_id]
 
