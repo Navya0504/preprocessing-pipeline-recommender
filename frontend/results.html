@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results | PreprocessAI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h2>PreprocessAI</h2>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="upload.html">New upload</a>
+        </nav>
+    </header>
+
+    <main class="results-container">
+        <h1>Your Recommendation</h1>
+        <p id="datasetInfo" class="hint"></p>
+
+        <section id="noResult" class="panel" hidden>
+            <p>No result found. Please <a href="upload.html">upload a dataset</a> first.</p>
+        </section>
+
+        <div id="resultArea" hidden>
+
+            <section class="panel">
+                <h2>Recommended pipeline</h2>
+                <div id="specGrid" class="spec-grid"></div>
+            </section>
+
+            <section class="panel">
+                <h2>Scores</h2>
+                <p class="hint">Each score is between 0 and 1. Higher is always better.</p>
+                <div id="scores"></div>
+            </section>
+
+            <section class="panel">
+                <h2>Why this pipeline?</h2>
+                <div id="explanation">Loading explanation...</div>
+            </section>
+
+            <section class="panel">
+                <h2>Other good options (Pareto front)</h2>
+                <p class="hint">These pipelines are not beaten on every goal by any other. The red point is the recommended one.</p>
+                <div class="axis-controls">
+                    <label for="xAxis">X axis</label>
+                    <select id="xAxis"></select>
+                    <label for="yAxis">Y axis</label>
+                    <select id="yAxis"></select>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="paretoChart"></canvas>
+                </div>
+                <p id="chartNote" class="hint" hidden>The chart could not be loaded. The table below shows the same data.</p>
+                <div class="table-wrap">
+                    <table id="paretoTable"></table>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Similar datasets it learned from</h2>
+                <div class="table-wrap">
+                    <table id="neighboursTable"></table>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Downloads</h2>
+                <div class="download-row">
+                    <button id="downloadCode">Download pipeline code</button>
+                </div>
+                <div class="download-row">
+                    <label for="cleanFile">To get a cleaned dataset, choose the same CSV again:</label>
+                    <input type="file" id="cleanFile" accept=".csv">
+                    <button id="downloadCleaned">Download cleaned dataset</button>
+                </div>
+                <p id="downloadStatus" role="status"></p>
+            </section>
+
+        </div>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="config.js"></script>
+    <script src="results.js"></script>
+    <script src="downloads.js"></script>
+</body>
+</html>

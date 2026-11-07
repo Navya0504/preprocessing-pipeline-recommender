@@ -122,3 +122,189 @@ article {
     color: #4f46e5;
     overflow-wrap: anywhere;
 }
+/* ---- Added for the upload form and the results page ---- */
+
+[hidden] {
+    display: none !important;
+}
+
+.form-row {
+    margin: 18px auto 0;
+    max-width: 420px;
+    text-align: left;
+}
+
+.form-row label,
+.axis-controls label,
+.download-row label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    background: white;
+    font-size: 15px;
+    color: #18233b;
+}
+
+button:disabled {
+    background: #a5b4fc;
+    cursor: not-allowed;
+}
+
+.error {
+    color: #b91c1c !important;
+}
+
+.results-container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.hint {
+    color: #5b6478;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.panel {
+    margin-top: 20px;
+    padding: 24px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px #0000000d;
+}
+
+.panel h2 {
+    margin-top: 0;
+    color: #4f46e5;
+}
+
+.panel h3 {
+    margin-bottom: 6px;
+}
+
+.spec-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+}
+
+.spec-item {
+    padding: 14px;
+    background: #eef2ff;
+    border-radius: 10px;
+}
+
+.spec-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #5b6478;
+}
+
+.score-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 50px;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.score-track {
+    height: 12px;
+    background: #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    background: #4f46e5;
+}
+
+.score-value {
+    text-align: right;
+    font-weight: bold;
+}
+
+.axis-controls {
+    display: grid;
+    grid-template-columns: auto 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.axis-controls label {
+    margin: 0;
+}
+
+.chart-wrap {
+    position: relative;
+    height: 320px;
+}
+
+.table-wrap {
+    margin-top: 16px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+th,
+td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    background: #eef2ff;
+}
+
+tr.chosen td {
+    background: #fee2e2;
+    font-weight: bold;
+}
+
+.download-row {
+    margin-top: 14px;
+}
+
+.download-row input {
+    display: block;
+    margin: 6px 0 10px;
+    max-width: 100%;
+}
+
+#downloadStatus {
+    margin-top: 14px;
+    color: #4f46e5;
+}
+
+@media (max-width: 650px) {
+    .spec-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .score-row {
+        grid-template-columns: 100px 1fr 40px;
+    }
+
+    .axis-controls {
+        grid-template-columns: 1fr;
+    }
+}
