@@ -144,24 +144,51 @@ def explain(meta_features: dict, chosen_spec: dict, scores: dict,
     in plain English: why this pipeline, which dataset traits mattered, what was given up."""
 ```
 
+
 ### Person 6: `backend/api.py` (FastAPI)
+
 | Endpoint | Input | Output |
 |---|---|---|
-| `POST /profile` | uploaded CSV, `target`, `task` | meta-features dict |
-| `POST /recommend` | uploaded CSV, `target`, `task` | `{recommended_spec, scores, pareto_front, neighbours}` |
-| `POST /explain` | the output of `/recommend` | explanation dict |
-| `GET /export/{id}` | recommendation id | downloadable Python code for the chosen scikit-learn pipeline |
-| `GET /health` | none | `{"status": "ok"}` |
+| `POST /profile` | Uploaded CSV, `target`, `task` | Meta-features dict |
+| `POST /recommend` | Uploaded CSV, `target`, `task` | `{recommendation_id, recommended_spec, scores, pareto_front, neighbours}` |
+| `POST /explain` | JSON body: `{"recommendation_id": "<id>"}` | Explanation dict |
+| `GET /export/{recommendation_id}` | Recommendation ID | Downloadable Python code for the chosen scikit-learn pipeline |
+| `GET /health` | None | `{"status": "ok"}` |
+
+**Note:** `pct_missing` returned by `/profile` is a fraction between 0 and 1, not a percentage between 0 and 100. For example, `0.25` represents 25% missing values.
 
 Uploaded files are processed in memory or in a temporary folder and deleted after the request.
 
 ---
 
-## 4. Working rules
-1. Never push directly to `main`. Use your branch and open a pull request. At least one teammate reviews before merging.
-2. Commit messages are short and clear, for example `Add outlier_fraction to meta_features`.
-3. Fixed random seed (`random_state=42`) everywhere, so results can be reproduced for the paper.
-4. No hard-coded file paths. Use relative paths from the project root.
-5. Add every new library to `requirements.txt` in the same pull request.
-6. Until your real module is ready, keep a working stub that returns correctly shaped dummy output, so Person 6 can build the app in parallel.
-7. Contract changes need agreement from the whole group.
+### `/clean`
+
+- **Method:** POST
+- **Path:** `/clean`
+- **Input:** Multipart form data:
+  - `recommendation_id`: ID returned by `/recommend`.
+  - `file`: CSV file to clean.
+- **Success response:** Cleaned CSV as a downloadable file named `cleaned_dataset.csv`.
+- **Error cases:**
+  - `404`: Unknown recommendation ID.
+  - `422`: Missing recommendation ID or file.
+  - `400`: Empty or unreadable CSV file, or cleaning error.
+
+**Example request:**
+
+```bash
+curl -X POST "http://127.0.0.1:8000/clean" \
+  -F "recommendation_id=YOUR_ID" \
+  -F "file=@data.csv" \
+  -o cleaned_dataset.csv
+```
+
+**Example response:**
+
+```http
+HTTP/1.1 200 OK
+Content-Disposition: attachment; filename=cleaned_dataset.csv
+Content-Type: text/csv
+```
+
+The downloaded file contains the cleaned CSV data.
