@@ -29,6 +29,10 @@ EXPERIENCE_DB = (
 RECOMMENDATIONS = {}
 
 
+def to_records(df):
+    return df.astype(object).where(df.notna(), None).to_dict(orient="records")
+
+
 class ExplainRequest(BaseModel):
     recommendation_id: str
 
@@ -250,14 +254,17 @@ async def recommend_pipeline(
         k=3,
     )
 
+    front_records = to_records(front)
+    neighbour_records = to_records(neighbours)
+
     recommendation_id = str(uuid4())
 
     RECOMMENDATIONS[recommendation_id] = {
         "meta_features": meta_features,
         "recommended_spec": recommended_spec,
         "scores": scores,
-        "pareto_front": front.to_dict(orient="records"),
-        "neighbours": neighbours.to_dict(orient="records"),
+        "pareto_front": front_records,
+        "neighbours": neighbour_records,
         "numeric_cols": numeric_cols,
         "categorical_cols": categorical_cols,
         "target": target,
@@ -268,8 +275,8 @@ async def recommend_pipeline(
         "recommendation_id": recommendation_id,
         "recommended_spec": recommended_spec,
         "scores": scores,
-        "pareto_front": front.to_dict(orient="records"),
-        "neighbours": neighbours.to_dict(orient="records"),
+        "pareto_front": front_records,
+        "neighbours": neighbour_records,
     }
 
 
@@ -341,7 +348,7 @@ async def clean_uploaded_dataset(
     recommendation_id: str = Form(...),
     file: UploadFile = File(...),
 ):
-    """Clean a CSV using the previously recommended pipeline."""
+    """Clean a CSV using a saved recommendation."""
 
     if recommendation_id not in RECOMMENDATIONS:
         raise HTTPException(

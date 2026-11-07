@@ -1,5 +1,5 @@
-
 import io
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -9,6 +9,8 @@ import backend.api as api
 
 
 client = TestClient(api.app)
+
+DATA = Path(__file__).resolve().parent.parent / "experiments" / "data"
 
 CSV_DATA = b"age,city,label\n22,Delhi,1\n25,Mumbai,0\n30,Delhi,1\n35,Chennai,0\n"
 
@@ -198,6 +200,7 @@ def test_health():
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
+
 def test_clean(monkeypatch):
     """Test cleaning a dataset using a saved recommendation."""
 
@@ -298,3 +301,50 @@ def test_export_unknown_recommendation():
     response = client.get("/export/invalid-id")
 
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "file_name,target,task",
+    [
+        ("iris.csv", "species", "classification"),
+        ("insurance.csv", "charges", "regression"),
+    ],
+)
+def test_end_to_end_real_engine(file_name, target, task):
+    """Run the whole API flow with the real engine and no mocks."""
+
+    path = DATA / file_name
+
+    if not path.exists():
+        pytest.skip("dataset file not available")
+
+    content = path.read_bytes()
+
+    recommendation = client.post(
+        "/recommend",
+        files={"file": (file_name, content, "text/csv")},
+        data={"target": target, "task": task},
+    )
+
+    assert recommendation.status_code == 200, recommendation.text
+
+    recommendation_id = recommendation.json()["recommendation_id"]
+
+    explanation = client.post(
+        "/explain",
+        json={"recommendation_id": recommendation_id},
+    )
+
+    assert explanation.status_code == 200, explanation.text
+
+    export = client.get(f"/export/{recommendation_id}")
+
+    assert export.status_code == 200, export.text
+
+    cleaned = client.post(
+        "/clean",
+        data={"recommendation_id": recommendation_id},
+        files={"file": (file_name, content, "text/csv")},
+    )
+
+    assert cleaned.status_code == 200, cleaned.text
