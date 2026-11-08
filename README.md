@@ -104,6 +104,30 @@ python -m pytest tests -q
 
 The tests run automatically on every push and pull request (GitHub Actions). Some of them run the real engine on files from `experiments/data/`.
 
+
+## Run with Docker
+
+Build the image:
+
+```bash
+docker build -t preprocessai .
+```
+
+Start the API on port 7860:
+
+```bash
+docker run -p 7860:7860 preprocessai
+```
+
+Check that it is running:
+
+```bash
+curl http://localhost:7860/health
+```
+
+The API documentation is at http://localhost:7860/docs. GitHub also builds the image and runs a recommendation inside it on every pull request (the "Docker" check).
+
+
 ## Rebuilding the experience database
 
 ```
