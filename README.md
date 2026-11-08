@@ -104,6 +104,56 @@ python -m pytest tests -q
 
 The tests run automatically on every push and pull request (GitHub Actions). Some of them run the real engine on files from `experiments/data/`.
 
+## Tests
+
+```
+pip install -r requirements-dev.txt
+python -m pytest tests -q
+```
+
+The tests run automatically on every push and pull request (GitHub Actions). Some of them run the real engine on files from `experiments/data/`.
+
+## Rebuilding the experience database
+
+```
+python experiments/build_experience_db.py --help
+```
+
+The options include `--max-rows`, `--max-candidates`, `--only`, `--redo` and `--fresh`. Which datasets are used, with their target column, task and cleaning flags, is listed in `experiments/data/datasets.csv`.
+
+## Team workflow
+
+Nobody pushes to `main`. Each change goes on a branch named `feature/short-name`, then a pull request into `main`, and it is merged after the Tests check is green.
+
+## Status and next steps
+
+- Done: the recommendation engine, the evaluation, the API, and the website pages for upload, results and downloads.
+- Next: recommendations are kept in memory only (lost on restart), so they will be stored on disk; text cleaning of messy uploads will move into the backend; Docker and deployment on Hugging Face Spaces; real Google and GitHub sign-in with a profile page.
+
+## Datasets
+
+The 30 datasets are public datasets, mostly from Kaggle and the UCI repository. Each keepsits own licence and terms; check the original source before reusing a file.
+## Run with Docker
+
+Build the image:
+
+```bash
+docker build -t preprocessai .
+```
+
+Start the API:
+
+```bash
+docker run -p 7860:7860 preprocessai
+```
+
+Check API health:
+
+```bash
+curl http://localhost:7860/health
+```
+
+Open the API documentation at http://localhost:7860/docs.
 ## Rebuilding the experience database
 
 ```
