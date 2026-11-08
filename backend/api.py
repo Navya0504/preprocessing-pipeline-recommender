@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -79,6 +80,12 @@ def save_recommendation(recommendation_id, recommendation):
 def get_recommendation(recommendation_id):
     """Retrieve a recommendation from memory or JSON storage."""
 
+    if not re.fullmatch(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        recommendation_id,
+    ):
+        return None
+
     if recommendation_id in RECOMMENDATIONS:
         return RECOMMENDATIONS[recommendation_id]
 
@@ -87,6 +94,11 @@ def get_recommendation(recommendation_id):
     if not file_path.exists():
         return None
 
+    with file_path.open("r", encoding="utf-8") as file:
+        recommendation = json.load(file)
+
+    RECOMMENDATIONS[recommendation_id] = recommendation
+    return recommendation
     with file_path.open("r", encoding="utf-8") as file:
         recommendation = json.load(file)
 

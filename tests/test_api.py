@@ -374,3 +374,26 @@ def test_recommendation_persists_after_memory_clear(monkeypatch, tmp_path):
     assert saved_recommendation is not None
     assert saved_recommendation["task"] == "classification"
     assert (tmp_path / f"{recommendation_id}.json").exists()
+def test_explain_rejects_path_traversal():
+    """Test that explain rejects path traversal IDs."""
+
+    response = client.post(
+        "/explain",
+        json={"recommendation_id": "../experiments/results"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == NOT_FOUND_DETAIL
+
+
+def test_clean_rejects_path_traversal():
+    """Test that clean rejects path traversal IDs."""
+
+    response = client.post(
+        "/clean",
+        data={"recommendation_id": "../experiments/results"},
+        files={"file": ("data.csv", CSV_DATA, "text/csv")},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == NOT_FOUND_DETAIL
