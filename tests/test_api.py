@@ -103,6 +103,51 @@ def test_recommend(monkeypatch):
     assert "neighbours" in result
 
 
+def test_recommend_samples_large_dataset(monkeypatch):
+    """Check that large datasets are sampled to 2000 rows using seed 42."""
+
+    setup_recommendation_mocks(monkeypatch)
+
+    captured = {}
+
+    def fake_extract_meta_features(df, target, task):
+        captured["rows"] = len(df)
+        captured["ages"] = df["age"].tolist()
+        return {"task": task, "n_rows": len(df)}
+
+    monkeypatch.setattr(
+        api,
+        "extract_meta_features",
+        fake_extract_meta_features,
+    )
+
+    large_df = pd.DataFrame({
+        "age": range(2500),
+        "label": [i % 2 for i in range(2500)],
+    })
+
+    expected = (
+        large_df.sample(n=2000, random_state=42)
+        .reset_index(drop=True)
+    )
+
+    response = client.post(
+        "/recommend",
+        files={
+            "file": (
+                "large.csv",
+                large_df.to_csv(index=False).encode("utf-8"),
+                "text/csv",
+            )
+        },
+        data={"target": "label", "task": "classification"},
+    )
+
+    assert response.status_code == 200
+    assert captured["rows"] == 2000
+    assert captured["ages"] == expected["age"].tolist()
+
+
 def test_explain(monkeypatch):
     """Test successful recommendation explanation."""
 
@@ -374,6 +419,8 @@ def test_recommendation_persists_after_memory_clear(monkeypatch, tmp_path):
     assert saved_recommendation is not None
     assert saved_recommendation["task"] == "classification"
     assert (tmp_path / f"{recommendation_id}.json").exists()
+
+
 def test_explain_rejects_path_traversal():
     """Test that explain rejects path traversal IDs."""
 
@@ -397,6 +444,8 @@ def test_clean_rejects_path_traversal():
 
     assert response.status_code == 404
     assert response.json()["detail"] == NOT_FOUND_DETAIL
+
+
 def test_serve_homepage():
     response = client.get("/")
 
@@ -419,6 +468,7 @@ def test_api_routes_still_work():
 
     assert health_response.status_code == 200
     assert docs_response.status_code == 200
+
 
 def test_tidy_messy_dataset():
     """Test that tidy cleans spaces, missing markers, and numeric text."""
