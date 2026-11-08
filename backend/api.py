@@ -1,5 +1,7 @@
 
 import io
+import json
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -20,17 +22,77 @@ from backend.code_export import export_code
 from backend.data_cleaner import clean_dataset
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 EXPERIENCE_DB = (
-    Path(__file__).resolve().parent.parent
+    PROJECT_ROOT
     / "experiments"
     / "results.csv"
 )
 
+DATA_DIR = Path(
+    os.getenv("DATA_DIR", str(PROJECT_ROOT / "data"))
+)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 RECOMMENDATIONS = {}
+
+NOT_FOUND_DETAIL = (
+    "Recommendation not found or expired. "
+    "Please upload your file again."
+)
 
 
 def to_records(df):
-    return df.astype(object).where(df.notna(), None).to_dict(orient="records")
+    """Convert a DataFrame into JSON-compatible records."""
+
+    return (
+        df.astype(object)
+        .where(df.notna(), None)
+        .to_dict(orient="records")
+    )
+
+
+def save_recommendation(recommendation_id, recommendation):
+    """Save a recommendation to memory and JSON storage."""
+
+    RECOMMENDATIONS[recommendation_id] = recommendation
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    file_path = DATA_DIR / f"{recommendation_id}.json"
+
+    with file_path.open("w", encoding="utf-8") as file:
+        json.dump(
+            recommendation,
+            file,
+            default=lambda value: (
+                value.tolist()
+                if hasattr(value, "tolist")
+                else value.item()
+                if hasattr(value, "item")
+                else str(value)
+            ),
+        )
+
+
+def get_recommendation(recommendation_id):
+    """Retrieve a recommendation from memory or JSON storage."""
+
+    if recommendation_id in RECOMMENDATIONS:
+        return RECOMMENDATIONS[recommendation_id]
+
+    file_path = DATA_DIR / f"{recommendation_id}.json"
+
+    if not file_path.exists():
+        return None
+
+    with file_path.open("r", encoding="utf-8") as file:
+        recommendation = json.load(file)
+
+    RECOMMENDATIONS[recommendation_id] = recommendation
+
+    return recommendation
 
 
 class ExplainRequest(BaseModel):
@@ -259,7 +321,7 @@ async def recommend_pipeline(
 
     recommendation_id = str(uuid4())
 
-    RECOMMENDATIONS[recommendation_id] = {
+    recommendation = {
         "meta_features": meta_features,
         "recommended_spec": recommended_spec,
         "scores": scores,
@@ -270,6 +332,11 @@ async def recommend_pipeline(
         "target": target,
         "task": task,
     }
+
+    save_recommendation(
+        recommendation_id,
+        recommendation,
+    )
 
     return {
         "recommendation_id": recommendation_id,
@@ -285,13 +352,13 @@ async def explain_pipeline(request: ExplainRequest):
 
     recommendation_id = request.recommendation_id
 
-    if recommendation_id not in RECOMMENDATIONS:
+    recommendation = get_recommendation(recommendation_id)
+
+    if recommendation is None:
         raise HTTPException(
             status_code=404,
-            detail="Recommendation not found.",
+            detail=NOT_FOUND_DETAIL,
         )
-
-    recommendation = RECOMMENDATIONS[recommendation_id]
 
     explanation = explain(
         recommendation["meta_features"],
@@ -310,13 +377,13 @@ async def explain_pipeline(request: ExplainRequest):
 @app.get("/export/{recommendation_id}")
 async def export_pipeline(recommendation_id: str):
 
-    if recommendation_id not in RECOMMENDATIONS:
+    recommendation = get_recommendation(recommendation_id)
+
+    if recommendation is None:
         raise HTTPException(
             status_code=404,
-            detail="Recommendation not found.",
+            detail=NOT_FOUND_DETAIL,
         )
-
-    recommendation = RECOMMENDATIONS[recommendation_id]
 
     try:
         code = export_code(
@@ -350,10 +417,12 @@ async def clean_uploaded_dataset(
 ):
     """Clean a CSV using a saved recommendation."""
 
-    if recommendation_id not in RECOMMENDATIONS:
+    recommendation = get_recommendation(recommendation_id)
+
+    if recommendation is None:
         raise HTTPException(
             status_code=404,
-            detail="Recommendation not found. Generate a new recommendation.",
+            detail=NOT_FOUND_DETAIL,
         )
 
     contents = await file.read()
@@ -365,8 +434,6 @@ async def clean_uploaded_dataset(
         )
 
     df = read_csv_file(contents)
-
-    recommendation = RECOMMENDATIONS[recommendation_id]
 
     try:
         cleaned = clean_dataset(
