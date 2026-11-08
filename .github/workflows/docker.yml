@@ -17,10 +17,10 @@ jobs:
       - name: Build image
         run: docker build -t preprocessai .
 
-      - name: Start container
+      - name: Start container for Iris
         run: docker run -d --name app -p 7860:7860 preprocessai
 
-      - name: Wait for /health
+      - name: Wait for Iris API health
         run: |
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:7860/health; then
@@ -45,39 +45,71 @@ jobs:
             -F "file=@experiments/data/iris.csv" \
             -F "target=species" -F "task=classification" \
             http://127.0.0.1:7860/recommend -o rec.json
+
           ID=$(python3 -c "import json; print(json.load(open('rec.json'))['recommendation_id'])")
-          echo "recommendation_id: $ID"
+          echo "Iris recommendation_id: $ID"
+
           curl -fsS --max-time 120 -X POST -H "Content-Type: application/json" \
             -d "{\"recommendation_id\": \"$ID\"}" \
             http://127.0.0.1:7860/explain -o /dev/null
-          curl -fsS --max-time 120 http://127.0.0.1:7860/export/$ID -o /dev/null
+
+          curl -fsS --max-time 120 \
+            http://127.0.0.1:7860/export/$ID -o /dev/null
+
           curl -fsS --max-time 300 \
-            -F "recommendation_id=$ID" -F "file=@experiments/data/iris.csv" \
+            -F "recommendation_id=$ID" \
+            -F "file=@experiments/data/iris.csv" \
             http://127.0.0.1:7860/clean -o /dev/null
-          echo "All iris endpoints worked inside the container."
+
+          echo "All Iris endpoints worked inside the container."
           echo "Iris container peak memory (bytes):"
           docker exec app cat /sys/fs/cgroup/memory.peak
+
+      - name: Stop Iris container
+        run: |
+          docker stop app
+          docker rm app
+
+      - name: Start fresh container for Adult
+        run: docker run -d --name app -p 7860:7860 preprocessai
+
+      - name: Wait for Adult API health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:7860/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "The Adult API did not become healthy."
+          exit 1
 
       - name: Recommend, explain, export and clean (adult.csv)
         run: |
           set -e
-          docker exec -u 0 app sh -c 'echo 0 > /sys/fs/cgroup/memory.peak'
           curl -fsS --max-time 300 \
             -F "file=@experiments/data/adult.csv" \
             -F "target=income" -F "task=classification" \
             http://127.0.0.1:7860/recommend -o adult-rec.json
+
           ID=$(python3 -c "import json; print(json.load(open('adult-rec.json'))['recommendation_id'])")
-          echo "recommendation_id: $ID"
+          echo "Adult recommendation_id: $ID"
+
           curl -fsS --max-time 120 -X POST -H "Content-Type: application/json" \
             -d "{\"recommendation_id\": \"$ID\"}" \
             http://127.0.0.1:7860/explain -o /dev/null
-          curl -fsS --max-time 120 http://127.0.0.1:7860/export/$ID -o /dev/null
-          curl -fsS --max-time 300 \
-            -F "recommendation_id=$ID" -F "file=@experiments/data/adult.csv" \
-            http://127.0.0.1:7860/clean -o /dev/null
-          echo "All adult endpoints worked inside the container."
 
-      - name: Show adult container peak memory
+          curl -fsS --max-time 120 \
+            http://127.0.0.1:7860/export/$ID -o /dev/null
+
+          curl -fsS --max-time 300 \
+            -F "recommendation_id=$ID" \
+            -F "file=@experiments/data/adult.csv" \
+            http://127.0.0.1:7860/clean -o /dev/null
+
+          echo "All Adult endpoints worked inside the container."
+
+      - name: Show Adult container peak memory
         run: |
           echo "Adult container peak memory (bytes):"
           docker exec app cat /sys/fs/cgroup/memory.peak
