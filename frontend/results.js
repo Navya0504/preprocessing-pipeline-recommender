@@ -100,7 +100,7 @@
             });
 
             if (response.status === 404) {
-                box.textContent = "This recommendation is no longer on the server (it may have restarted). Please upload the dataset again.";
+                box.textContent = "This recommendation has expired. Please upload your file again.";
                 return;
             }
             if (!response.ok) {
