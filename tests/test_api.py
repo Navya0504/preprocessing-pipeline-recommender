@@ -1,3 +1,4 @@
+
 import io
 from pathlib import Path
 
@@ -13,6 +14,10 @@ client = TestClient(api.app)
 DATA = Path(__file__).resolve().parent.parent / "experiments" / "data"
 
 CSV_DATA = b"age,city,label\n22,Delhi,1\n25,Mumbai,0\n30,Delhi,1\n35,Chennai,0\n"
+
+NOT_FOUND_DETAIL = (
+    "Recommendation not found or expired. Please upload your file again."
+)
 
 SPEC = {
     "imputer": "median",
@@ -237,6 +242,7 @@ def test_clean_unknown_recommendation():
     )
 
     assert response.status_code == 404
+    assert response.json()["detail"] == NOT_FOUND_DETAIL
 
 
 def test_recommend_uses_k_three(monkeypatch):
@@ -293,6 +299,7 @@ def test_explain_unknown_recommendation():
     )
 
     assert response.status_code == 404
+    assert response.json()["detail"] == NOT_FOUND_DETAIL
 
 
 def test_export_unknown_recommendation():
@@ -301,6 +308,7 @@ def test_export_unknown_recommendation():
     response = client.get("/export/invalid-id")
 
     assert response.status_code == 404
+    assert response.json()["detail"] == NOT_FOUND_DETAIL
 
 
 @pytest.mark.parametrize(
@@ -348,3 +356,44 @@ def test_end_to_end_real_engine(file_name, target, task):
     )
 
     assert cleaned.status_code == 200, cleaned.text
+
+
+def test_recommendation_persists_after_memory_clear(monkeypatch, tmp_path):
+    """Recommendation should be available after clearing in-memory storage."""
+
+    monkeypatch.setattr(api, "DATA_DIR", tmp_path)
+
+    response = make_recommendation(monkeypatch)
+
+    recommendation_id = response["recommendation_id"]
+
+    api.RECOMMENDATIONS.clear()
+
+    saved_recommendation = api.get_recommendation(recommendation_id)
+
+    assert saved_recommendation is not None
+    assert saved_recommendation["task"] == "classification"
+    assert (tmp_path / f"{recommendation_id}.json").exists()
+def test_explain_rejects_path_traversal():
+    """Test that explain rejects path traversal IDs."""
+
+    response = client.post(
+        "/explain",
+        json={"recommendation_id": "../experiments/results"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == NOT_FOUND_DETAIL
+
+
+def test_clean_rejects_path_traversal():
+    """Test that clean rejects path traversal IDs."""
+
+    response = client.post(
+        "/clean",
+        data={"recommendation_id": "../experiments/results"},
+        files={"file": ("data.csv", CSV_DATA, "text/csv")},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == NOT_FOUND_DETAIL
