@@ -397,3 +397,25 @@ def test_clean_rejects_path_traversal():
 
     assert response.status_code == 404
     assert response.json()["detail"] == NOT_FOUND_DETAIL
+def test_serve_homepage():
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "<html" in response.text.lower()
+
+
+def test_serve_upload_page():
+    response = client.get("/upload.html")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "<html" in response.text.lower()
+
+
+def test_api_routes_still_work():
+    health_response = client.get("/health")
+    docs_response = client.get("/docs")
+
+    assert health_response.status_code == 200
+    assert docs_response.status_code == 200

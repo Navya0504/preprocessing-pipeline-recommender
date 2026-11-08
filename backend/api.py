@@ -9,7 +9,8 @@ from uuid import uuid4
 import pandas as pd
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend.meta_features import extract_meta_features
@@ -24,6 +25,7 @@ from backend.data_cleaner import clean_dataset
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
 EXPERIENCE_DB = (
     PROJECT_ROOT
@@ -204,9 +206,7 @@ def get_feature_columns(df: pd.DataFrame, target: str):
 
 @app.get("/")
 def home():
-    return {
-        "message": "Preprocessing Pipeline Recommender API is running"
-    }
+    return FileResponse(FRONTEND_DIR / "index.html")
 
 
 @app.get("/health")
@@ -471,3 +471,8 @@ async def clean_uploaded_dataset(
                 "attachment; filename=cleaned_dataset.csv"
         },
     )
+app.mount(
+    "/",
+    StaticFiles(directory=FRONTEND_DIR, html=True),
+    name="frontend",
+)
