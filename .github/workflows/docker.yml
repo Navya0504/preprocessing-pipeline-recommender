@@ -1,5 +1,4 @@
 
-
 name: Docker
 
 # Builds the Docker image, starts it, and runs one real recommendation
@@ -32,12 +31,13 @@ jobs:
           echo "The API did not become healthy."
           exit 1
 
-            - name: Check website pages
+      - name: Check website pages
         run: |
           set -e
           curl -fsS http://127.0.0.1:7860/ | grep -qi "<html"
           curl -fsS http://127.0.0.1:7860/upload.html | grep -qi "<html"
           echo "Website pages loaded successfully."
+
       - name: Recommend, explain, export and clean (iris.csv)
         run: |
           set -e
