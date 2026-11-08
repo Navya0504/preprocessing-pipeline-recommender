@@ -419,3 +419,24 @@ def test_api_routes_still_work():
 
     assert health_response.status_code == 200
     assert docs_response.status_code == 200
+
+def test_tidy_messy_dataset():
+    """Test that tidy cleans spaces, missing markers, and numeric text."""
+
+    df = pd.DataFrame({
+        "age": [" 25 ", "30", "?"],
+        "city": [" Delhi ", "Mumbai ", " Chennai "],
+    })
+
+    result = api.tidy(df)
+
+    assert result["age"].dtype == "float64"
+    assert result["age"].iloc[0] == 25.0
+    assert result["age"].iloc[1] == 30.0
+    assert pd.isna(result["age"].iloc[2])
+
+    assert result["city"].tolist() == [
+        "Delhi",
+        "Mumbai",
+        "Chennai",
+    ]

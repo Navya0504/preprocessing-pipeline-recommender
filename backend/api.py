@@ -22,6 +22,7 @@ from backend.meta_recommender import (
 from backend.pareto_selector import pareto_front, select_best
 from backend.code_export import export_code
 from backend.data_cleaner import clean_dataset
+from backend.data_tidy import tidy
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -223,6 +224,7 @@ async def profile_dataset(
     validate_task(task)
 
     df = read_csv_file(await file.read())
+    df = tidy(df)
 
     df, numeric_cols, categorical_cols = get_feature_columns(
         df, target
@@ -259,6 +261,7 @@ async def recommend_pipeline(
     validate_task(task)
 
     df = read_csv_file(await file.read())
+    df = tidy(df)
 
     df, numeric_cols, categorical_cols = get_feature_columns(
         df, target
@@ -446,6 +449,7 @@ async def clean_uploaded_dataset(
         )
 
     df = read_csv_file(contents)
+    df = tidy(df)
 
     try:
         cleaned = clean_dataset(
