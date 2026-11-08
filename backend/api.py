@@ -27,6 +27,9 @@ from backend.data_tidy import tidy
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
+MAX_RECOMMEND_ROWS = 2000
+RANDOM_SEED = 42
+
 
 EXPERIENCE_DB = (
     PROJECT_ROOT
@@ -262,6 +265,11 @@ async def recommend_pipeline(
 
     df = read_csv_file(await file.read())
     df = tidy(df)
+    if len(df) > MAX_RECOMMEND_ROWS:
+        df = df.sample(
+        n=MAX_RECOMMEND_ROWS,
+        random_state=RANDOM_SEED,
+        ).reset_index(drop=True)
 
     df, numeric_cols, categorical_cols = get_feature_columns(
         df, target

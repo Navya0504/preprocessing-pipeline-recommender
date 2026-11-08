@@ -1,3 +1,4 @@
+
 """Turn a recommended pipeline into copy-and-run scikit-learn code.
 
 Contract: see INTEGRATION_CONTRACT.md (export).
@@ -16,6 +17,7 @@ from __future__ import annotations
 import inspect
 
 from backend import pipeline_space as ps
+from backend.data_tidy import tidy
 
 
 def _imputer_line(choice: str) -> str:
@@ -23,7 +25,7 @@ def _imputer_line(choice: str) -> str:
         return "KNNImputer(n_neighbors=5)"
     if choice in ("mean", "median", "most_frequent"):
         return f'SimpleImputer(strategy="{choice}")'
-    return 'SimpleImputer(strategy="median")'  # drop_rows: rows with gaps are removed when fitting
+    return 'SimpleImputer(strategy="median")'
 
 
 def _encoder_line(choice: str) -> str:
@@ -36,7 +38,11 @@ def _encoder_line(choice: str) -> str:
     return f"TargetEncoder(cv=KFold(n_splits=5, shuffle=True, random_state={ps.RANDOM_STATE}))"
 
 
-_SCALER_LINES = {"standard": "StandardScaler()", "minmax": "MinMaxScaler()", "robust": "RobustScaler()"}
+_SCALER_LINES = {
+    "standard": "StandardScaler()",
+    "minmax": "MinMaxScaler()",
+    "robust": "RobustScaler()",
+}
 
 
 def export_code(
@@ -64,35 +70,66 @@ def export_code(
         "from imblearn.pipeline import Pipeline",
         "from sklearn.base import BaseEstimator, TransformerMixin",
         "from sklearn.compose import ColumnTransformer",
-        "from sklearn.impute import " + ("KNNImputer, SimpleImputer" if spec["imputer"] == "knn" else "SimpleImputer"),
+        "from sklearn.impute import " + (
+            "KNNImputer, SimpleImputer"
+            if spec["imputer"] == "knn"
+            else "SimpleImputer"
+        ),
         "from sklearn.pipeline import Pipeline as SkPipeline",
     ]
-    preprocessing = {"onehot": "OneHotEncoder", "ordinal": "OrdinalEncoder", "target": "TargetEncoder"}[spec["encoder"]]
-    names = [preprocessing] + [s for s in ("StandardScaler", "MinMaxScaler", "RobustScaler") if _SCALER_LINES.get(spec["scaler"]) == f"{s}()"]
-    imports.append("from sklearn.preprocessing import " + ", ".join(sorted(names)))
+
+    preprocessing = {
+        "onehot": "OneHotEncoder",
+        "ordinal": "OrdinalEncoder",
+        "target": "TargetEncoder",
+    }[spec["encoder"]]
+
+    names = [preprocessing] + [
+        s
+        for s in ("StandardScaler", "MinMaxScaler", "RobustScaler")
+        if _SCALER_LINES.get(spec["scaler"]) == f"{s}()"
+    ]
+
+    imports.append(
+        "from sklearn.preprocessing import " + ", ".join(sorted(names))
+    )
+
     if spec["encoder"] == "target" and ps._SKLEARN_VERSION >= (1, 9):
         imports.append("from sklearn.model_selection import KFold")
+
     if isolation:
         imports.append("from sklearn.ensemble import IsolationForest")
+
     if smote:
         imports.append("from imblearn.over_sampling import SMOTE")
+
     if task == "classification":
         imports.append("from sklearn.linear_model import LogisticRegression")
     else:
         imports.append("from sklearn.linear_model import Ridge")
 
-    helpers = []
+    # Include the exact tidy function in the exported standalone script.
+    helpers = [inspect.getsource(tidy)]
+
     constants = [f"RANDOM_STATE = {ps.RANDOM_STATE}"]
+
     if isolation:
-        constants.append(f"ISOLATION_CONTAMINATION = {ps.ISOLATION_CONTAMINATION}")
+        constants.append(
+            f"ISOLATION_CONTAMINATION = {ps.ISOLATION_CONTAMINATION}"
+        )
+
     if iqr:
         helpers.append(inspect.getsource(ps.IQRClipper))
+
     if drop_rows or isolation or smote:
         helpers.append(inspect.getsource(ps._take))
+
     if drop_rows:
         helpers.append(inspect.getsource(ps._drop_incomplete_rows))
+
     if isolation:
         helpers.append(inspect.getsource(ps._remove_isolated_rows))
+
     if smote:
         helpers.append(inspect.getsource(ps._safe_smote))
 
@@ -110,50 +147,91 @@ def export_code(
         f"CATEGORICAL_COLS = {list(categorical_cols)!r}",
         "",
     ]
+
     for helper in helpers:
         lines += [helper.rstrip(), "", ""]
 
     numeric_steps = [f'("impute", {_imputer_line(spec["imputer"])})']
+
     if iqr:
         numeric_steps.append('("clip", IQRClipper())')
+
     if spec["scaler"] != "none":
         numeric_steps.append(f'("scale", {_SCALER_LINES[spec["scaler"]]})')
+
     transformers = []
+
     if numeric_cols:
-        transformers.append(f'    ("numeric", SkPipeline([{", ".join(numeric_steps)}]), NUMERIC_COLS),')
+        transformers.append(
+            f'    ("numeric", SkPipeline([{", ".join(numeric_steps)}]), NUMERIC_COLS),'
+        )
+
     if categorical_cols:
         transformers.append(
             '    ("categorical", SkPipeline([("impute", SimpleImputer(strategy="most_frequent")), '
             f'("encode", {_encoder_line(spec["encoder"])})]), CATEGORICAL_COLS),'
         )
-    lines += ["preprocessing = ColumnTransformer([", *transformers, '], remainder="drop")', ""]
+
+    lines += [
+        "preprocessing = ColumnTransformer([",
+        *transformers,
+        '], remainder="drop")',
+        "",
+    ]
 
     if task == "classification":
         weight = '"balanced"' if ps.uses_class_weight(spec) else "None"
-        model = f"LogisticRegression(max_iter=1000, class_weight={weight}, random_state=RANDOM_STATE)"
+        model = (
+            f"LogisticRegression(max_iter=1000, class_weight={weight}, "
+            "random_state=RANDOM_STATE)"
+        )
     else:
         model = "Ridge(random_state=RANDOM_STATE)"
 
     steps = []
+
     if drop_rows:
-        steps.append('    ("drop_missing", FunctionSampler(func=_drop_incomplete_rows, validate=False)),')
+        steps.append(
+            '    ("drop_missing", FunctionSampler(func=_drop_incomplete_rows, validate=False)),'
+        )
+
     steps.append('    ("prep", preprocessing),')
+
     if isolation:
-        steps.append('    ("outlier_removal", FunctionSampler(func=_remove_isolated_rows, validate=False)),')
+        steps.append(
+            '    ("outlier_removal", FunctionSampler(func=_remove_isolated_rows, validate=False)),'
+        )
+
     if smote:
-        steps.append('    ("smote", FunctionSampler(func=_safe_smote, validate=False)),')
+        steps.append(
+            '    ("smote", FunctionSampler(func=_safe_smote, validate=False)),'
+        )
+
     steps.append(f'    ("model", {model}),')
-    lines += ["pipeline = Pipeline([", *steps, "])", ""]
+
+    lines += [
+        "pipeline = Pipeline([",
+        *steps,
+        "])",
+        "",
+    ]
 
     lines += [
         'if __name__ == "__main__":',
         '    data = pd.read_csv("your_data.csv")  # <- change this to your file',
+        "    data = tidy(data)",
         "    data = data.dropna(subset=[TARGET])",
         "    X = data[NUMERIC_COLS + CATEGORICAL_COLS]",
         "    y = data[TARGET]",
         "    pipeline.fit(X, y)",
         '    print("Training score:", pipeline.score(X, y))',
     ]
+
     if sampler_steps:
-        lines.insert(len(lines) - 5, "    # Steps that remove or add rows run only while fitting; new data is never changed.")
+        lines.insert(
+            len(lines) - 5,
+            "    # Steps that remove or add rows run only while fitting; "
+            "new data is never changed.",
+        )
+
     return "\n".join(lines) + "\n"
