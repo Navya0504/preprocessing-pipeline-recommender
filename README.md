@@ -64,6 +64,27 @@ python -m venv .venv
 # source .venv/bin/activate     # Linux and macOS
 pip install -r requirements.txt
 ```
+## Screenshots
+
+Upload page:
+
+![Upload page](docs/upload.png)
+
+Recommended pipeline and scores:
+
+![Scores](docs/scores.png)
+
+Explanation:
+
+![Explanation](docs/explainer.png)
+
+Pareto chart of the best trade-offs:
+
+![Pareto chart](docs/pareto.png)
+
+Downloads (pipeline code and cleaned dataset):
+
+![Downloads](docs/downloads.png)
 
 ## Run the website
 
