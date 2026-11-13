@@ -1,52 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Dataset | PreprocessAI</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-    <header>
-        <h2>PreprocessAI</h2>
-        <nav>
-            <a href="index.html">Home</a>
-        </nav>
-    </header>
-
-    <main class="upload-container">
-        <h1>Upload Your Dataset</h1>
-        <p>Upload a CSV file to get a recommended preprocessing pipeline.</p>
-
-        <div class="upload-box">
-            <input type="file" id="datasetFile" accept=".csv">
-
-            <p id="fileName">No file selected</p>
-
-            <div class="form-row">
-                <label for="targetColumn">Target column (what you want to predict)</label>
-                <select id="targetColumn" disabled>
-                    <option value="">Choose a CSV file first</option>
-                </select>
-            </div>
-
-            <div class="form-row">
-                <label for="task">Task</label>
-                <select id="task">
-                    <option value="">Select a task</option>
-                    <option value="classification">Classification (predict a category)</option>
-                    <option value="regression">Regression (predict a number)</option>
-                </select>
-            </div>
-
-            <button id="analyzeButton">Analyze Dataset</button>
-
-            <p id="statusMessage" role="status"></p>
-        </div>
-    </main>
-
-    <script src="config.js"></script>
-    <script src="upload.js"></script>
-</body>
-</html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Upload Dataset | PreprocessAI</title><link rel="stylesheet" href="style.css"></head><body>
+<header class="nav no-print"><div class="wrap nav-inner"><a class="brand" href="index.html"><span class="brand-mark">P</span>PreprocessAI</a><nav class="links"><a href="index.html">Home</a><a href="upload.html">Analyze</a><a href="about.html">How it works</a><a href="profile.html">Profile</a><a data-auth href="login.html" class="btn small">Login</a></nav></div></header>
+<main class="wrap"><div class="page-head"><span class="eyebrow">Step 1 &middot; Dataset</span><h1>Upload your dataset</h1><p>Upload a CSV file to get a recommended preprocessing pipeline.</p></div><div class="card form-card"><div class="drop"><h3>Choose your CSV file</h3><input type="file" id="datasetFile" accept=".csv"></div><p id="fileName" class="muted">No file selected</p><div class="field"><label for="targetColumn">Target column (what you want to predict)</label><select id="targetColumn" disabled><option value="">Choose a CSV file first</option></select></div><div class="field"><label for="task">Task</label><select id="task"><option value="">Select a task</option><option value="classification">Classification (predict a category)</option><option value="regression">Regression (predict a number)</option></select></div><button id="analyzeButton" class="btn">Analyze dataset &rarr;</button><p id="statusMessage" class="status" role="status"></p></div></main>
+<footer class="footer no-print"><div class="wrap"><span>&copy; 2026 PreprocessAI &middot; Explainable preprocessing recommendations</span><span>Research prototype &middot; HTML / CSS / JS + FastAPI</span></div></footer>
+<script src="config.js"></script><script src="upload.js"></script><script src="app.js"></script>
+</body></html>
