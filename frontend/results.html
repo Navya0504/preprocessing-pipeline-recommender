@@ -1,23 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Results | PreprocessAI</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-    <header>
-        <h2>PreprocessAI</h2>
-        <nav>
-            <a href="index.html">Home</a>
-            <a href="upload.html">New upload</a>
-        </nav>
-    </header>
-
-    <main class="results-container">
-        <h1>Your Recommendation</h1>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Results | PreprocessAI</title><link rel="stylesheet" href="style.css"></head><body>
+<header class="nav no-print"><div class="wrap nav-inner"><a class="brand" href="index.html"><span class="brand-mark">P</span>PreprocessAI</a><nav class="links"><a href="index.html">Home</a><a href="upload.html">Analyze</a><a href="about.html">How it works</a><a href="profile.html">Profile</a><a data-auth href="login.html" class="btn small">Login</a></nav></div></header>
+<main class="wrap results-wrap"><div class="page-head"><span class="eyebrow">Step 2 &middot; Recommendation</span>
+        <h1>Your Recommendation</h1></div>
         <p id="datasetInfo" class="hint"></p>
 
         <section id="noResult" class="panel" hidden>
@@ -33,7 +18,7 @@
 
             <section class="panel">
                 <h2>Scores</h2>
-                <p class="hint">Estimated from similar datasets in our experience database, not measured on your file. Each score is between 0 and 1. Higher is always better.. Higher is always better.</p>
+                <p class="hint">Estimated from similar datasets in our experience database, not measured on your file. Each score is between 0 and 1. Higher is always better.</p>
                 <div id="scores"></div>
             </section>
 
@@ -82,10 +67,6 @@
 
         </div>
     </main>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-    <script src="config.js"></script>
-    <script src="results.js"></script>
-    <script src="downloads.js"></script>
-</body>
-</html>
+<footer class="footer no-print"><div class="wrap"><span>&copy; 2026 PreprocessAI &middot; Explainable preprocessing recommendations</span><span>Research prototype &middot; HTML / CSS / JS + FastAPI</span></div></footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script><script src="config.js"></script><script src="results.js"></script><script src="downloads.js"></script><script src="app.js"></script>
+</body></html>

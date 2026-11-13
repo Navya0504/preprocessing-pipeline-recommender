@@ -1,0 +1,11 @@
+'use strict';
+const $=s=>document.querySelector(s);
+const KEY='preprocessai_profile_v2';
+const get=(k,def=null)=>{try{return JSON.parse(localStorage.getItem(k))??def}catch{return def}};
+const set=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const escapeHTML=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Number.isFinite(Number(n))?Number(n).toLocaleString(undefined,{maximumFractionDigits:2}):'—';
+const nav=()=>{const active=location.pathname.split('/').pop()||'index.html';const loggedIn=localStorage.getItem('preprocessaiLoggedIn')==='true';document.querySelectorAll('[data-auth]').forEach(el=>{el.textContent=loggedIn?'Account':'Login';el.href=loggedIn?'profile.html':'login.html'});document.querySelectorAll('.links a').forEach(a=>{if(a.getAttribute('href')===active)a.classList.add('active')})};
+function notice(message,ok=false){const e=$('#message');if(e){e.textContent=message;e.classList.toggle('ok',ok)}}
+function initProfile(){const f=$('#profileForm');if(!f)return;const p=get(KEY,{}),u=get('preprocessaiUser',{});$('#profileName').textContent=u.name||'Your profile';$('#engineering').value=p.engineering||'';$('#role').value=p.role||'';document.querySelectorAll('[name="datasetType"]').forEach(x=>x.checked=(p.datasetTypes||[]).includes(x.value));const updateDatasetCount=()=>{const n=document.querySelectorAll('[name="datasetType"]:checked').length;const counter=$('#datasetSelectionCount');if(counter)counter.textContent=n+' selected';};document.querySelectorAll('[name="datasetType"]').forEach(x=>x.addEventListener('change',updateDatasetCount));updateDatasetCount();if(p.engineering)notice('Saved profile loaded. You can update it anytime.',true);f.addEventListener('submit',e=>{e.preventDefault();const datasetTypes=[...document.querySelectorAll('[name="datasetType"]:checked')].map(x=>x.value);if(!datasetTypes.length)return notice('Choose at least one dataset type.');set(KEY,{engineering:$('#engineering').value,role:$('#role').value,datasetTypes,updatedAt:new Date().toISOString()});notice('Profile saved successfully!',true);setTimeout(()=>location.href='upload.html',500)})}
+document.addEventListener('DOMContentLoaded',()=>{nav();initProfile()});
