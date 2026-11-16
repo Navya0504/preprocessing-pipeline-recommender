@@ -80,6 +80,22 @@ File: `experiments/results.csv` (one row per dataset and pipeline spec).
 
 Columns: `dataset_id`, every meta-feature key from 2.2, the five spec keys from 2.3, the five score keys from 2.4, and the `raw_*` columns.
 
+### 2.6 Step status (the `steps` key of an explanation)
+`steps` has one entry for each of the five steps (`imputer`, `encoder`, `scaler`, `outlier`, `imbalance`):
+
+```python
+steps = {
+    "imputer": {"method": "median", "status": "not_needed", "note": "No missing values in this dataset."},
+    # ... same shape for encoder, scaler, outlier, imbalance
+}
+```
+
+- `method`: the method chosen in the spec for that step.
+- `status`: one of `applied`, `skipped`, `not_needed` or `not_applicable`.
+- `note`: a short plain-English reason.
+
+The website uses `status` to show whether a step is actually used for this dataset.
+
 ---
 
 ## 3. Function signatures
@@ -140,10 +156,10 @@ def explainability_score(spec: dict) -> float:
 
 def explain(meta_features: dict, chosen_spec: dict, scores: dict,
             neighbours: pd.DataFrame, front: pd.DataFrame) -> dict:
-    """Return {"summary": str, "reasons": list[str], "tradeoffs": list[str]}
-    in plain English: why this pipeline, which dataset traits mattered, what was given up."""
+    """Return {"summary": str, "steps": dict, "reasons": list[str], "tradeoffs": list[str]}
+    in plain English: why this pipeline, which dataset traits mattered, what was given up.
+    "steps" follows the format in 2.6."""
 ```
-
 
 ### Person 6: `backend/api.py` (FastAPI)
 
@@ -151,8 +167,9 @@ def explain(meta_features: dict, chosen_spec: dict, scores: dict,
 |---|---|---|
 | `POST /profile` | Uploaded CSV, `target`, `task` | Meta-features dict |
 | `POST /recommend` | Uploaded CSV, `target`, `task` | `{recommendation_id, recommended_spec, scores, pareto_front, neighbours}` |
-| `POST /explain` | JSON body: `{"recommendation_id": "<id>"}` | Explanation dict |
+| `POST /explain` | JSON body: `{"recommendation_id": "<id>"}` | Explanation dict: `summary`, `steps` (see 2.6), `reasons`, `tradeoffs` |
 | `GET /export/{recommendation_id}` | Recommendation ID | Downloadable Python code for the chosen scikit-learn pipeline |
+| `POST /clean` | Form data: `recommendation_id`, CSV `file` | Downloadable `cleaned_dataset.csv` (details below) |
 | `GET /health` | None | `{"status": "ok"}` |
 
 **Note:** `pct_missing` returned by `/profile` is a fraction between 0 and 1, not a percentage between 0 and 100. For example, `0.25` represents 25% missing values.

@@ -66,8 +66,10 @@
 
     // Recommended pipeline
     const specGrid = document.getElementById("specGrid");
+    const specCards = {}
     SPEC_KEYS.forEach(function (key) {
         const card = make("div", null, "spec-item");
+        specCards[key] = card
         card.appendChild(make("span", LABELS[key], "spec-label"));
         card.appendChild(make("strong", String((result.recommended_spec || {})[key] ?? "n/a")));
         specGrid.appendChild(card);
@@ -89,6 +91,22 @@
         scoresBox.appendChild(row);
     });
 
+    const STATUS_TEXT = { applied: "Applied", skipped: "Skipped", not_needed: "Not needed", not_applicable: "Not applicable" };
+    function applyStepStatus(steps) {
+        if (!steps) { return; }
+        SPEC_KEYS.forEach(function (key) {
+            const info = steps[key];
+            const card = specCards[key];
+            if (!info || !card) { return; }
+            if (info.status === "not_needed" || info.status === "not_applicable") {
+                card.querySelector("strong").textContent = STATUS_TEXT[info.status];
+                card.classList.add("step-inactive");
+            }
+            card.appendChild(make("span", STATUS_TEXT[info.status] || info.status, "step-badge step-" + info.status));
+            if (info.note) { card.appendChild(make("small", info.note, "step-note")); }
+        });
+    }
+
     // Explanation
     async function loadExplanation() {
         const box = document.getElementById("explanation");
@@ -109,6 +127,7 @@
             }
 
             const data = await response.json();
+            applyStepStatus(data.steps);
             box.textContent = "";
             box.appendChild(make("p", data.summary || ""));
 

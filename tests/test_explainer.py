@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from backend.explainer import SCORE_KEYS, SPEC_KEYS, explain, explainability_score
+from backend.explainer import SCORE_KEYS, SPEC_KEYS, explain, explainability_score,step_status
 
 SPEC = dict(imputer="median", encoder="onehot", scaler="standard", outlier="none", imbalance="none")
 
@@ -45,7 +45,7 @@ def test_explainability_score_values():
 # ---------------------------------------------------------------------- shape
 def test_result_has_exactly_the_contract_keys():
     result = explain(meta(), SPEC, scores(), pd.DataFrame(), pd.DataFrame())
-    assert set(result) == {"summary", "reasons", "tradeoffs"}
+    assert set(result) == {"summary", "reasons", "tradeoffs", "steps"}
     assert isinstance(result["summary"], str) and isinstance(result["reasons"], list) and isinstance(result["tradeoffs"], list)
 
 
@@ -160,3 +160,31 @@ def test_explanation_is_plain_english_not_code_keys():
     result = explain(meta(), spec, scores(), pd.DataFrame(), pd.DataFrame())
     for raw in ["most_frequent", "class_weight", "isolation_forest", "iqr_clip"]:
         assert raw not in text(result)
+
+# ---------------------------------------------------------------- step status
+def test_step_status_when_nothing_to_fix():
+    m = meta(pct_missing=0.0, n_categorical=0, class_imbalance_ratio=1.0)
+    status = step_status(SPEC, m, True)
+    assert status["imputer"]["status"] == "not_needed"
+    assert status["encoder"]["status"] == "not_needed"
+    assert status["scaler"]["status"] == "applied"  # SPEC uses standard scaling
+    assert status["outlier"]["status"] == "skipped"
+    assert status["imbalance"]["status"] == "skipped"
+
+
+def test_step_status_applied_when_the_data_needs_it():
+    spec = {**SPEC, "outlier": "iqr_clip", "imbalance": "smote"}
+    status = step_status(spec, meta(), True)
+    assert all(status[step]["status"] == "applied" for step in SPEC_KEYS)
+    assert status["imputer"]["method"] == "median"
+
+
+def test_step_status_regression_has_no_class_balancing():
+    status = step_status(SPEC, meta(task="regression"), False)
+    assert status["imbalance"]["status"] == "not_applicable"
+
+
+def test_step_status_no_numeric_columns():
+    status = step_status(SPEC, meta(n_numeric=0), True)
+    assert status["scaler"]["status"] == "not_applicable"
+    assert status["outlier"]["status"] == "not_applicable"
