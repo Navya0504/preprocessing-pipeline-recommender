@@ -158,6 +158,7 @@ def test_explain(monkeypatch):
         "explain",
         lambda *args: {
             "summary": "Recommended pipeline",
+            "steps": {"imputer": {"method": "median", "status": "applied", "note": "Fills missing values."}},
             "reasons": ["Suitable for the dataset"],
             "tradeoffs": ["Some extra processing"]
         }
@@ -170,6 +171,7 @@ def test_explain(monkeypatch):
 
     assert response.status_code == 200
     assert "summary" in response.json()
+    assert "steps" in response.json()
 
 
 def test_export(monkeypatch):
@@ -389,6 +391,12 @@ def test_end_to_end_real_engine(file_name, target, task):
     )
 
     assert explanation.status_code == 200, explanation.text
+    steps = explanation.json()["steps"]
+    assert set(steps) == {"imputer", "encoder", "scaler", "outlier", "imbalance"}
+    assert all(
+        step["status"] in {"applied", "skipped", "not_needed", "not_applicable"}
+        for step in steps.values()
+    )
 
     export = client.get(f"/export/{recommendation_id}")
 

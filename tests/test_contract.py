@@ -118,5 +118,5 @@ def test_explain_returns_expected_keys(df):
     meta = extract_meta_features(df, "label", "classification")
     spec = generate_candidates(meta)[0]
     result = explain(meta, spec, {}, pd.DataFrame(), pd.DataFrame())
-    assert set(result) == {"summary", "reasons", "tradeoffs"}
+    assert set(result) == {"summary", "reasons", "tradeoffs", "steps"}
     assert isinstance(result["reasons"], list)

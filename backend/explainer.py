@@ -4,11 +4,11 @@ Contract: see INTEGRATION_CONTRACT.md, section 3.
 STATUS: real implementation. The INTERPRETABILITY ratings are still a judgement call
 (1.0 = anyone can follow it, lower = harder to explain); keep them stable once experiments start.
 
-explain() returns {"summary": str, "reasons": list[str], "tradeoffs": list[str]}:
+explain() returns {"summary": str, "steps": dict, "reasons": list[str], "tradeoffs": list[str]}:
     summary    one sentence naming every step of the chosen pipeline in everyday words
-    reasons    why each step suits THIS dataset (its measured traits), plus which similar
-               past datasets the advice is based on
-    tradeoffs  what was given up compared with the other best-trade-off pipelines
+    steps      for each of the five steps: method, and whether it is applied, skipped,
+               not needed or not applicable for THIS dataset, with a short note
+    reasons    ...
 """
 from __future__ import annotations
 
@@ -215,6 +215,43 @@ def _tradeoffs(chosen: dict, scores: dict, front: pd.DataFrame | None) -> list[s
     return notes
 
 
+def step_status(spec: dict, meta: dict, is_classification: bool) -> dict:
+    """For each step: applied, skipped, not_needed or not_applicable for THIS dataset."""
+    missing = _num(meta.get("pct_missing"))
+    n_text = _num(meta.get("n_categorical"))
+    n_numeric = _num(meta.get("n_numeric"))
+    result = {}
+
+    def put(step, status, note):
+        result[step] = {"method": spec.get(step), "status": status, "note": note}
+
+    if missing is not None and missing == 0:
+        put("imputer", "not_needed", "No values are missing, so gap-filling is not needed.")
+    else:
+        put("imputer", "applied", "Fills the missing values in your data.")
+
+    if n_text is not None and n_text == 0:
+        put("encoder", "not_needed", "There are no text columns, so encoding is not needed.")
+    else:
+        put("encoder", "applied", "Turns text columns into numbers.")
+
+    for step, label in (("scaler", "Scaling"), ("outlier", "Outlier handling")):
+        if n_numeric is not None and n_numeric == 0:
+            put(step, "not_applicable", "There are no numeric columns.")
+        elif spec.get(step) == "none":
+            put(step, "skipped", label + " was skipped to keep the pipeline simple.")
+        else:
+            put(step, "applied", label + " is applied to the numeric columns.")
+
+    if not is_classification:
+        put("imbalance", "not_applicable", "Class balancing only applies to classification tasks.")
+    elif spec.get("imbalance") == "none":
+        put("imbalance", "skipped", "No class balancing was used.")
+    else:
+        put("imbalance", "applied", "Balances the classes during training.")
+    return result
+
+
 # -------------------------------------------------------------------------- main
 def explain(
     meta_features: dict,
@@ -223,7 +260,7 @@ def explain(
     neighbours: pd.DataFrame,
     front: pd.DataFrame,
 ) -> dict:
-    """Return {"summary": str, "reasons": list[str], "tradeoffs": list[str]}."""
+    """Return {"summary": str, "steps": dict, "reasons": list[str], "tradeoffs": list[str],}."""
     is_classification = meta_features.get("task", "classification") == "classification"
 
     reasons = [
@@ -238,6 +275,7 @@ def explain(
 
     return {
         "summary": _summary(chosen_spec, is_classification),
+        "steps": step_status(chosen_spec, meta_features, is_classification),
         "reasons": [reason for reason in reasons if reason],
-        "tradeoffs": _tradeoffs(chosen_spec, scores or {}, front),
+        "tradeoffs": _tradeoffs(chosen_spec, scores or {}, front),    
     }
