@@ -132,6 +132,10 @@
 
     // Pareto table
     const front = Array.isArray(result.pareto_front) ? result.pareto_front : [];
+    document.getElementById("paretoHint").textContent =
+        front.length + " pipelines are Pareto-optimal: none of them is beaten by another pipeline on all five goals. " +
+        "Only these are shown. Pipelines that are beaten on every goal are not sent by the server. " +
+        "Points that look close in this two-score view can still differ in the other three scores. The red point is the recommended one.";
     const table = document.getElementById("paretoTable");
     const columns = SPEC_KEYS.concat(SCORE_KEYS);
     const headRow = make("tr");
@@ -180,11 +184,22 @@
             const point = {
                 x: Number(row[xKey]),
                 y: Number(row[yKey]),
-                label: SPEC_KEYS.map(function (key) { return row[key]; }).join(" / ")
+                label: SPEC_KEYS.map(function (key) { return row[key]; }).join(" / "),
+                row: row
             };
             (sameSpec(row) ? chosen : others).push(point);
         });
-
+                const allPoints = others.concat(chosen);
+        function axisRange(field) {
+            const values = allPoints.map(function (p) { return p[field]; });
+            const low = Math.min.apply(null, values);
+            const high = Math.max.apply(null, values);
+            const pad = Math.max((high - low) * 0.2, 0.01);
+            return { min: Math.max(0, low - pad), max: Math.min(1, high + pad) };
+        }
+        const xRange = allPoints.length ? axisRange("x") : { min: 0, max: 1 };
+        const yRange = allPoints.length ? axisRange("y") : { min: 0, max: 1 };
+        
         if (chart) {
             chart.destroy();
         }
@@ -192,7 +207,7 @@
             type: "scatter",
             data: {
                 datasets: [
-                    { label: "Other options", data: others, backgroundColor: "#818cf8", pointRadius: 6 },
+                    { label: "Other Pareto-optimal pipelines", data: others, backgroundColor: "#818cf8", pointRadius: 6 },
                     { label: "Recommended", data: chosen, backgroundColor: "#dc2626", pointRadius: 9 }
                 ]
             },
@@ -200,14 +215,17 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { title: { display: true, text: LABELS[xKey] }, min: 0, max: 1 },
-                    y: { title: { display: true, text: LABELS[yKey] }, min: 0, max: 1 }
+                    x: { title: { display: true, text: LABELS[xKey] }, min: xRange.min, max: xRange.max },
+                    y: { title: { display: true, text: LABELS[yKey] }, min: yRange.min, max: yRange.max }
                 },
                 plugins: {
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                return context.raw.label + " (" + context.raw.x.toFixed(2) + ", " + context.raw.y.toFixed(2) + ")";
+                                const row = context.raw.row;
+                                return [context.raw.label].concat(SCORE_KEYS.map(function (key) {
+                                    return LABELS[key] + ": " + number(row[key]);
+                                }));
                             }
                         }
                     }

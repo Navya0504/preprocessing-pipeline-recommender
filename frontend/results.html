@@ -17,8 +17,8 @@
             </section>
 
             <section class="panel">
-                <h2>Scores</h2>
-                <p class="hint">Estimated from similar datasets in our experience database, not measured on your file. Each score is between 0 and 1. Higher is always better.</p>
+                <h2>Estimated Scores</h2>
+                <p class="info"><strong>Estimated, not measured.</strong> These scores are predicted from similar datasets in our experience database. They are not the accuracy of a model trained on your uploaded file. Each score is between 0 and 1, and higher is better.</p>
                 <div id="scores"></div>
             </section>
 
@@ -28,8 +28,8 @@
             </section>
 
             <section class="panel">
-                <h2>Other good options (Pareto front)</h2>
-                <p class="hint">These pipelines are not beaten on every goal by any other. The red point is the recommended one.</p>
+                <h2>Pareto-optimal pipelines</h2>
+                <p class="hint" id="paretoHint"></p>
                 <div class="axis-controls">
                     <label for="xAxis">X axis</label>
                     <select id="xAxis"></select>
